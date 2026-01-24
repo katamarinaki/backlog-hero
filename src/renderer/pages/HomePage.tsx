@@ -234,7 +234,7 @@ function HomePage() {
     return (
       <div className="home-page">
         <div className="empty-state">
-          <h2>Welcome to Steam Tracker</h2>
+          <h2>Welcome to Backlog Hero</h2>
           <p>To get started, configure your Steam API credentials in the settings.</p>
           <Link to="/settings" className="btn-primary">
             Go to Settings
