@@ -69,9 +69,9 @@ jobs:
           draft: true
           tag: v${{ steps.version.outputs.version }}
           name: v${{ steps.version.outputs.version }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           artifacts: |
             release-artifacts/**/*.dmg
             release-artifacts/**/*.exe
-            release-artifacts/**/*.zip
             release-artifacts/**/*.blockmap
             release-artifacts/**/*.yml
