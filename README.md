@@ -1,6 +1,6 @@
-# Steam Tracker
+# Backlog Hero
 
-Steam Tracker is an Electron desktop app for browsing your Steam library and keeping lightweight notes and completion status per game.
+Backlog Hero is an Electron desktop app for browsing your Steam library and keeping lightweight notes and completion status per game.
 
 ## Features
 

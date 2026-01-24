@@ -78,6 +78,13 @@ jobs:
           tag: v${{ steps.version.outputs.version }}
           name: v${{ steps.version.outputs.version }}
           token: ${{ secrets.GITHUB_TOKEN }}
+          body: |
+            Install
+            - Windows: download and run the `Backlog Hero Setup <version>.exe` installer.
+            - macOS: download and open the `Backlog Hero-<version>-arm64.dmg` file.
+
+            Notes
+            - Auto-update files (`latest*.yml`, `app-update.yml`, `*.blockmap`) are for the app and can be ignored.
           artifacts: |
             release-artifacts/**/*.dmg
             release-artifacts/**/*.blockmap

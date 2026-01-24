@@ -7,7 +7,7 @@ function App() {
   return (
     <div className="app">
       <nav className="navbar">
-        <div className="nav-brand">Steam Tracker</div>
+        <div className="nav-brand">Backlog Hero</div>
         <div className="nav-links">
           <Link to="/" className="nav-link">
             Library

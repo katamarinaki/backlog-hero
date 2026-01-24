@@ -1,7 +1,7 @@
 {
-  "name": "steam-tracker",
+  "name": "backlog-hero",
   "version": "1.0.0",
-  "description": "Track your Steam game library",
+  "description": "Track your Steam game backlog",
   "main": "dist/main/main.js",
   "author": {
     "name": "Alex B"
@@ -53,7 +53,7 @@
   },
   "build": {
     "appId": "com.steamtracker.app",
-    "productName": "Steam Tracker",
+    "productName": "Backlog Hero",
     "icon": "assets/icons/icon",
     "asar": true,
     "files": [
