@@ -68,6 +68,13 @@ const store = new Store<StoreSchema>({
 
 let mainWindow: BrowserWindow | null = null;
 
+app.setName('Backlog Hero');
+app.setAboutPanelOptions({
+  applicationName: 'Backlog Hero',
+  applicationVersion: app.getVersion(),
+  credits: 'Backlog Hero',
+});
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
