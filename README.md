@@ -57,3 +57,8 @@ Steam Tracker is an Electron desktop app for browsing your Steam library and kee
 - Auto updates are enabled in production builds via `electron-updater`.
 - Releases are expected to be published on GitHub for this repository.
 - When the app starts, it checks for updates and will download/install them when available.
+
+## Releases
+
+- On every push to `main`, GitHub Actions builds Windows and macOS installers and creates/updates a draft release.
+- The release tag and name are `v<package.json version>`. Bump the version before merging to `main`.
