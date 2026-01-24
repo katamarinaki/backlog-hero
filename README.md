@@ -51,3 +51,9 @@ Steam Tracker is an Electron desktop app for browsing your Steam library and kee
 
 - Windows: run `npm run dist:win` on Windows to produce an NSIS installer in `release/`.
 - macOS: run `npm run dist:mac` on macOS to produce a DMG in `release/`.
+
+## Auto Updates
+
+- Auto updates are enabled in production builds via `electron-updater`.
+- Releases are expected to be published on GitHub for this repository.
+- When the app starts, it checks for updates and will download/install them when available.

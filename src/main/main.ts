@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, net } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
 import Store from 'electron-store';
 
@@ -89,7 +90,29 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(createWindow);
+function initAutoUpdater() {
+  if (!app.isPackaged) return;
+
+  autoUpdater.on('error', (error) => {
+    console.error('Auto update error:', error);
+  });
+
+  autoUpdater.checkForUpdatesAndNotify().catch((error) => {
+    console.error('Auto update check failed:', error);
+  });
+
+  const intervalMs = 4 * 60 * 60 * 1000;
+  setInterval(() => {
+    autoUpdater.checkForUpdatesAndNotify().catch((error) => {
+      console.error('Auto update check failed:', error);
+    });
+  }, intervalMs);
+}
+
+app.whenReady().then(() => {
+  createWindow();
+  initAutoUpdater();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
