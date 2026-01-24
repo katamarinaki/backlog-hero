@@ -1,0 +1,28 @@
+name: Enforce Version Bump
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  version-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch Main
+        run: git fetch origin main
+
+      - name: Compare Versions
+        run: |
+          MAIN_VERSION=$(git show origin/main:package.json | node -p "JSON.parse(fs.readFileSync(0, 'utf8')).version")
+          PR_VERSION=$(node -p "require('./package.json').version")
+
+          if [ "$MAIN_VERSION" = "$PR_VERSION" ]; then
+            echo "package.json version is unchanged ($PR_VERSION). Bump version before merge."
+            exit 1
+          fi
