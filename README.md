@@ -37,9 +37,17 @@ Steam Tracker is an Electron desktop app for browsing your Steam library and kee
 - `npm run build`: Build renderer and compile Electron main
 - `npm run start`: Build and run the packaged app
 - `npm run typecheck`: TypeScript checks for renderer and main
+- `npm run dist`: Build and package for the current platform
+- `npm run dist:win`: Build and package a Windows installer
+- `npm run dist:mac`: Build and package a macOS DMG
 
 ## Development Notes
 
 - The Electron main process is in `src/main/main.ts`.
 - The React renderer is in `src/renderer`.
 - Local data is stored with `electron-store`.
+
+## Packaging
+
+- Windows: run `npm run dist:win` on Windows to produce an NSIS installer in `release/`.
+- macOS: run `npm run dist:mac` on macOS to produce a DMG in `release/`.

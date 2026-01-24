@@ -1,16 +1,15 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import path from 'path';
+import react from "@vitejs/plugin-react";
+import path from "path";
 
-export default defineConfig({
+export default {
   plugins: [react()],
-  base: './',
+  base: "./",
   build: {
-    outDir: 'dist/renderer',
+    outDir: "dist/renderer",
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src/renderer'),
+      "@": path.resolve(__dirname, "./src/renderer"),
     },
   },
-});
+};
