@@ -65,13 +65,15 @@
     },
     "mac": {
       "target": [
-        "dmg"
+        "dmg",
+        "zip"
       ],
       "category": "public.app-category.games"
     },
     "win": {
       "target": [
-        "nsis"
+        "nsis",
+        "zip"
       ]
     },
     "publish": [
