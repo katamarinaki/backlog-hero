@@ -67,12 +67,14 @@
       "target": [
         "dmg"
       ],
+      "artifactName": "Backlog Hero.${ext}",
       "category": "public.app-category.games"
     },
     "win": {
       "target": [
         "nsis"
-      ]
+      ],
+      "artifactName": "Backlog Hero Setup.${ext}"
     },
     "publish": [
       {
