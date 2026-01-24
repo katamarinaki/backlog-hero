@@ -65,7 +65,13 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           allowUpdates: true
+          replacesArtifacts: true
           draft: true
           tag: v${{ steps.version.outputs.version }}
           name: v${{ steps.version.outputs.version }}
-          artifacts: release-artifacts/**
+          artifacts: |
+            release-artifacts/**/*.dmg
+            release-artifacts/**/*.exe
+            release-artifacts/**/*.zip
+            release-artifacts/**/*.blockmap
+            release-artifacts/**/*.yml
