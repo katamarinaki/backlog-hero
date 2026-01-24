@@ -1,7 +1,8 @@
-import { app, BrowserWindow, ipcMain, net } from 'electron';
-import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
+
+import { app, BrowserWindow, ipcMain, net } from 'electron';
 import Store from 'electron-store';
+import { autoUpdater } from 'electron-updater';
 
 interface GameRating {
   positive: number;
@@ -170,7 +171,7 @@ ipcMain.handle('fetch-games', async () => {
           } else {
             reject(new Error('Invalid response from Steam API'));
           }
-        } catch (e) {
+        } catch {
           reject(new Error('Failed to parse Steam API response'));
         }
       });
@@ -299,19 +300,26 @@ ipcMain.handle('get-completions', () => {
   return store.get('completions') || {};
 });
 
-ipcMain.handle('save-completion', (_, { appid, completion }: { appid: number; completion: GameCompletion | null }) => {
-  const completions = store.get('completions') || {};
-  if (completion === null) {
-    delete completions[appid];
-  } else {
-    completions[appid] = completion;
-  }
-  store.set('completions', completions);
-  return true;
-});
+ipcMain.handle(
+  'save-completion',
+  (_, { appid, completion }: { appid: number; completion: GameCompletion | null }) => {
+    const completions = store.get('completions') || {};
+    if (completion === null) {
+      delete completions[appid];
+    } else {
+      completions[appid] = completion;
+    }
+    store.set('completions', completions);
+    return true;
+  },
+);
 
 // Fetch achievements for a single game
-async function fetchGameAchievements(appid: number, apiKey: string, steamId: string): Promise<GameAchievements | null> {
+async function fetchGameAchievements(
+  appid: number,
+  apiKey: string,
+  steamId: string,
+): Promise<GameAchievements | null> {
   const url = `https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/?appid=${appid}&key=${apiKey}&steamid=${steamId}`;
 
   return new Promise((resolve) => {
@@ -329,7 +337,9 @@ async function fetchGameAchievements(appid: number, apiKey: string, steamId: str
           if (parsed.playerstats && parsed.playerstats.achievements) {
             const achievements = parsed.playerstats.achievements;
             const total = achievements.length;
-            const achieved = achievements.filter((a: { achieved: number }) => a.achieved === 1).length;
+            const achieved = achievements.filter(
+              (a: { achieved: number }) => a.achieved === 1,
+            ).length;
             resolve({ achieved, total });
           } else {
             resolve(null);

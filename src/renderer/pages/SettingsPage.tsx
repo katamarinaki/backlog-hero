@@ -28,7 +28,7 @@ function SettingsPage() {
     try {
       await window.electronAPI.saveSettings({ apiKey, steamId });
       setStatus({ type: 'success', message: 'Settings saved successfully!' });
-    } catch (error) {
+    } catch {
       setStatus({ type: 'error', message: 'Failed to save settings' });
     } finally {
       setLoading(false);
@@ -54,7 +54,11 @@ function SettingsPage() {
           />
           <small>
             Get your API key from{' '}
-            <a href="https://steamcommunity.com/dev/apikey" target="_blank" rel="noopener noreferrer">
+            <a
+              href="https://steamcommunity.com/dev/apikey"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               Steam Web API
             </a>
           </small>
@@ -77,11 +81,7 @@ function SettingsPage() {
           </small>
         </div>
 
-        {status && (
-          <div className={`status-message ${status.type}`}>
-            {status.message}
-          </div>
-        )}
+        {status && <div className={`status-message ${status.type}`}>{status.message}</div>}
 
         <button type="submit" className="btn-primary" disabled={loading}>
           {loading ? 'Saving...' : 'Save Settings'}

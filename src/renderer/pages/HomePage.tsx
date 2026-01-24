@@ -1,31 +1,27 @@
-import { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
-import type { SteamGame, GameRating, GameCompletion, GameAchievements } from "../types/electron";
-import GameCardModal from "../components/GameCardModal";
+import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 
-type SortOption = "playtime" | "name" | "rating" | "last_played";
-type CompletionFilter = "all" | "completed" | "not_completed";
+import GameCardModal from '../components/GameCardModal';
+import type { GameAchievements, GameCompletion, GameRating, SteamGame } from '../types/electron';
+
+type SortOption = 'playtime' | 'name' | 'rating' | 'last_played';
+type CompletionFilter = 'all' | 'completed' | 'not_completed';
 
 function HomePage() {
   const [games, setGames] = useState<SteamGame[]>([]);
   const [ratings, setRatings] = useState<Record<number, GameRating>>({});
   const [notes, setNotes] = useState<Record<number, string>>({});
-  const [completions, setCompletions] = useState<
-    Record<number, GameCompletion>
-  >({});
-  const [achievements, setAchievements] = useState<
-    Record<number, GameAchievements>
-  >({});
+  const [completions, setCompletions] = useState<Record<number, GameCompletion>>({});
+  const [achievements, setAchievements] = useState<Record<number, GameAchievements>>({});
   const [loading, setLoading] = useState(false);
   const [loadingRatings, setLoadingRatings] = useState(false);
   const [loadingAchievements, setLoadingAchievements] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSettings, setHasSettings] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<SortOption>("playtime");
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<SortOption>('playtime');
   const [sortAsc, setSortAsc] = useState(false);
-  const [completionFilter, setCompletionFilter] =
-    useState<CompletionFilter>("all");
+  const [completionFilter, setCompletionFilter] = useState<CompletionFilter>('all');
   const [selectedGame, setSelectedGame] = useState<SteamGame | null>(null);
 
   useEffect(() => {
@@ -37,15 +33,21 @@ function HomePage() {
       const settings = await window.electronAPI.getSettings();
       setHasSettings(!!settings.apiKey && !!settings.steamId);
 
-      const [cachedGames, cachedRatings, cachedNotes, cachedCompletions, cachedAchievements, filterPrefs] =
-        await Promise.all([
-          window.electronAPI.getGames(),
-          window.electronAPI.getRatings(),
-          window.electronAPI.getNotes(),
-          window.electronAPI.getCompletions(),
-          window.electronAPI.getAchievements(),
-          window.electronAPI.getFilterPreferences(),
-        ]);
+      const [
+        cachedGames,
+        cachedRatings,
+        cachedNotes,
+        cachedCompletions,
+        cachedAchievements,
+        filterPrefs,
+      ] = await Promise.all([
+        window.electronAPI.getGames(),
+        window.electronAPI.getRatings(),
+        window.electronAPI.getNotes(),
+        window.electronAPI.getCompletions(),
+        window.electronAPI.getAchievements(),
+        window.electronAPI.getFilterPreferences(),
+      ]);
 
       if (cachedGames && cachedGames.length > 0) {
         setGames(cachedGames);
@@ -68,7 +70,7 @@ function HomePage() {
         setSortAsc(filterPrefs.sortAsc);
       }
     } catch (err) {
-      console.error("Failed to load games:", err);
+      console.error('Failed to load games:', err);
     }
   };
 
@@ -80,7 +82,7 @@ function HomePage() {
       const fetchedGames = await window.electronAPI.fetchGames();
       setGames(fetchedGames);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch games");
+      setError(err instanceof Error ? err.message : 'Failed to fetch games');
     } finally {
       setLoading(false);
     }
@@ -95,7 +97,7 @@ function HomePage() {
       const fetchedRatings = await window.electronAPI.fetchRatings(appids);
       setRatings(fetchedRatings);
     } catch (err) {
-      console.error("Failed to fetch ratings:", err);
+      console.error('Failed to fetch ratings:', err);
     } finally {
       setLoadingRatings(false);
     }
@@ -110,7 +112,7 @@ function HomePage() {
       const fetchedAchievements = await window.electronAPI.fetchAchievements(appids);
       setAchievements(fetchedAchievements);
     } catch (err) {
-      console.error("Failed to fetch achievements:", err);
+      console.error('Failed to fetch achievements:', err);
     } finally {
       setLoadingAchievements(false);
     }
@@ -145,14 +147,14 @@ function HomePage() {
   };
 
   const getGameImageUrl = (appid: number, hash: string): string => {
-    if (!hash) return "";
+    if (!hash) return '';
     return `https://media.steampowered.com/steamcommunity/public/images/apps/${appid}/${hash}.jpg`;
   };
 
   const getRatingColor = (score: number): string => {
-    if (score >= 70) return "#66c0f4";
-    if (score >= 40) return "#b9a074";
-    return "#a34c4c";
+    if (score >= 70) return '#66c0f4';
+    if (score >= 40) return '#b9a074';
+    return '#a34c4c';
   };
 
   const completedCount = useMemo(() => {
@@ -169,9 +171,9 @@ function HomePage() {
     }
 
     // Filter by completion status
-    if (completionFilter === "completed") {
+    if (completionFilter === 'completed') {
       result = result.filter((game) => completions[game.appid]?.completed);
-    } else if (completionFilter === "not_completed") {
+    } else if (completionFilter === 'not_completed') {
       result = result.filter((game) => !completions[game.appid]?.completed);
     }
 
@@ -180,37 +182,33 @@ function HomePage() {
       let comparison = 0;
 
       switch (sortBy) {
-        case "playtime":
+        case 'playtime': {
           comparison = b.playtime_forever - a.playtime_forever;
           break;
-        case "name":
+        }
+        case 'name': {
           comparison = a.name.localeCompare(b.name);
           break;
-        case "rating":
+        }
+        case 'rating': {
           const ratingA = ratings[a.appid]?.score ?? -1;
           const ratingB = ratings[b.appid]?.score ?? -1;
           comparison = ratingB - ratingA;
           break;
-        case "last_played":
+        }
+        case 'last_played': {
           const lastA = a.rtime_last_played ?? 0;
           const lastB = b.rtime_last_played ?? 0;
           comparison = lastB - lastA;
           break;
+        }
       }
 
       return sortAsc ? -comparison : comparison;
     });
 
     return result;
-  }, [
-    games,
-    ratings,
-    completions,
-    searchQuery,
-    sortBy,
-    sortAsc,
-    completionFilter,
-  ]);
+  }, [games, ratings, completions, searchQuery, sortBy, sortAsc, completionFilter]);
 
   const handleSortChange = (newSort: SortOption) => {
     const newSortAsc = sortBy === newSort ? !sortAsc : false;
@@ -237,10 +235,7 @@ function HomePage() {
       <div className="home-page">
         <div className="empty-state">
           <h2>Welcome to Steam Tracker</h2>
-          <p>
-            To get started, configure your Steam API credentials in the
-            settings.
-          </p>
+          <p>To get started, configure your Steam API credentials in the settings.</p>
           <Link to="/settings" className="btn-primary">
             Go to Settings
           </Link>
@@ -256,31 +251,24 @@ function HomePage() {
         <div className="header-actions">
           <span className="game-count">
             {filteredAndSortedGames.length} / {games.length} games
-            <span className="completed-count">
-              {" "}
-              ({completedCount} completed)
-            </span>
+            <span className="completed-count"> ({completedCount} completed)</span>
           </span>
-          <button
-            onClick={handleRefresh}
-            className="btn-primary"
-            disabled={loading}
-          >
-            {loading ? "Refreshing..." : "Refresh Library"}
+          <button onClick={handleRefresh} className="btn-primary" disabled={loading}>
+            {loading ? 'Refreshing...' : 'Refresh Library'}
           </button>
           <button
             onClick={handleFetchRatings}
             className="btn-secondary"
             disabled={loadingRatings || games.length === 0}
           >
-            {loadingRatings ? "Loading Ratings..." : "Fetch Ratings"}
+            {loadingRatings ? 'Loading Ratings...' : 'Fetch Ratings'}
           </button>
           <button
             onClick={handleFetchAchievements}
             className="btn-secondary"
             disabled={loadingAchievements || games.length === 0}
           >
-            {loadingAchievements ? "Loading Achievements..." : "Fetch Achievements"}
+            {loadingAchievements ? 'Loading Achievements...' : 'Fetch Achievements'}
           </button>
         </div>
       </div>
@@ -297,9 +285,7 @@ function HomePage() {
         <div className="filter-options">
           <select
             value={completionFilter}
-            onChange={(e) =>
-              handleCompletionFilterChange(e.target.value as CompletionFilter)
-            }
+            onChange={(e) => handleCompletionFilterChange(e.target.value as CompletionFilter)}
             className="filter-select"
           >
             <option value="all">All Games</option>
@@ -310,28 +296,28 @@ function HomePage() {
         <div className="sort-options">
           <span className="sort-label">Sort by:</span>
           <button
-            className={`sort-btn ${sortBy === "playtime" ? "active" : ""}`}
-            onClick={() => handleSortChange("playtime")}
+            className={`sort-btn ${sortBy === 'playtime' ? 'active' : ''}`}
+            onClick={() => handleSortChange('playtime')}
           >
-            Playtime {sortBy === "playtime" && (sortAsc ? "↑" : "↓")}
+            Playtime {sortBy === 'playtime' && (sortAsc ? '↑' : '↓')}
           </button>
           <button
-            className={`sort-btn ${sortBy === "name" ? "active" : ""}`}
-            onClick={() => handleSortChange("name")}
+            className={`sort-btn ${sortBy === 'name' ? 'active' : ''}`}
+            onClick={() => handleSortChange('name')}
           >
-            Name {sortBy === "name" && (sortAsc ? "↑" : "↓")}
+            Name {sortBy === 'name' && (sortAsc ? '↑' : '↓')}
           </button>
           <button
-            className={`sort-btn ${sortBy === "rating" ? "active" : ""}`}
-            onClick={() => handleSortChange("rating")}
+            className={`sort-btn ${sortBy === 'rating' ? 'active' : ''}`}
+            onClick={() => handleSortChange('rating')}
           >
-            Rating {sortBy === "rating" && (sortAsc ? "↑" : "↓")}
+            Rating {sortBy === 'rating' && (sortAsc ? '↑' : '↓')}
           </button>
           <button
-            className={`sort-btn ${sortBy === "last_played" ? "active" : ""}`}
-            onClick={() => handleSortChange("last_played")}
+            className={`sort-btn ${sortBy === 'last_played' ? 'active' : ''}`}
+            onClick={() => handleSortChange('last_played')}
           >
-            Last Played {sortBy === "last_played" && (sortAsc ? "↑" : "↓")}
+            Last Played {sortBy === 'last_played' && (sortAsc ? '↑' : '↓')}
           </button>
         </div>
       </div>
@@ -340,9 +326,7 @@ function HomePage() {
 
       {games.length === 0 && !loading ? (
         <div className="empty-state">
-          <p>
-            No games loaded yet. Click "Refresh Library" to fetch your games.
-          </p>
+          <p>No games loaded yet. Click &quot;Refresh Library&quot; to fetch your games.</p>
         </div>
       ) : filteredAndSortedGames.length === 0 ? (
         <div className="empty-state">
@@ -358,18 +342,13 @@ function HomePage() {
             return (
               <div
                 key={game.appid}
-                className={`game-card ${isCompleted ? "completed" : ""}`}
+                className={`game-card ${isCompleted ? 'completed' : ''}`}
                 onClick={() => setSelectedGame(game)}
               >
-                {isCompleted && (
-                  <div className="completed-badge">Completed</div>
-                )}
+                {isCompleted && <div className="completed-badge">Completed</div>}
                 <div className="game-image">
                   {game.img_icon_url ? (
-                    <img
-                      src={getGameImageUrl(game.appid, game.img_icon_url)}
-                      alt={game.name}
-                    />
+                    <img src={getGameImageUrl(game.appid, game.img_icon_url)} alt={game.name} />
                   ) : (
                     <div className="no-image">No Image</div>
                   )}
@@ -387,18 +366,14 @@ function HomePage() {
                     {formatPlaytime(game.playtime_forever)}
                     {game.playtime_2weeks && (
                       <span className="recent-playtime">
-                        {" "}
+                        {' '}
                         ({formatPlaytime(game.playtime_2weeks)} last 2 weeks)
                       </span>
                     )}
                   </p>
                   {rating && (
-                    <p
-                      className="game-rating"
-                      style={{ color: getRatingColor(rating.score) }}
-                    >
-                      {rating.description} ({rating.score}% of{" "}
-                      {rating.total.toLocaleString()})
+                    <p className="game-rating" style={{ color: getRatingColor(rating.score) }}>
+                      {rating.description} ({rating.score}% of {rating.total.toLocaleString()})
                     </p>
                   )}
                   {gameAchievements && (
@@ -417,7 +392,7 @@ function HomePage() {
         <GameCardModal
           game={selectedGame}
           rating={ratings[selectedGame.appid]}
-          note={notes[selectedGame.appid] || ""}
+          note={notes[selectedGame.appid] || ''}
           completion={completions[selectedGame.appid]}
           achievements={achievements[selectedGame.appid]}
           onClose={() => setSelectedGame(null)}

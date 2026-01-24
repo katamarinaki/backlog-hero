@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+
 import type { SteamGame, GameRating, GameCompletion, GameAchievements } from '../types/electron';
 
 interface GameCardModalProps {
@@ -122,11 +123,7 @@ function GameCardModal({
 
           <div className="completion-section">
             <label className="completion-checkbox">
-              <input
-                type="checkbox"
-                checked={isCompleted}
-                onChange={handleCompletionToggle}
-              />
+              <input type="checkbox" checked={isCompleted} onChange={handleCompletionToggle} />
               <span className="checkbox-label">Mark as completed</span>
             </label>
             {isCompleted && (
@@ -172,7 +169,8 @@ function GameCardModal({
                   {achievements.achieved} / {achievements.total}
                   {achievements.total > 0 && (
                     <span className="achievement-percent">
-                      {' '}({Math.round((achievements.achieved / achievements.total) * 100)}%)
+                      {' '}
+                      ({Math.round((achievements.achieved / achievements.total) * 100)}%)
                     </span>
                   )}
                 </span>
@@ -193,7 +191,10 @@ function GameCardModal({
               <div className="rating-bar">
                 <div
                   className="rating-bar-positive"
-                  style={{ width: `${rating.score}%`, backgroundColor: getRatingColor(rating.score) }}
+                  style={{
+                    width: `${rating.score}%`,
+                    backgroundColor: getRatingColor(rating.score),
+                  }}
                 />
               </div>
             </div>

@@ -1,15 +1,16 @@
-import react from "@vitejs/plugin-react";
-import path from "path";
+import path from 'path';
+
+import react from '@vitejs/plugin-react';
 
 export default {
   plugins: [react()],
-  base: "./",
+  base: './',
   build: {
-    outDir: "dist/renderer",
+    outDir: 'dist/renderer',
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src/renderer"),
+      '@': path.resolve(__dirname, './src/renderer'),
     },
   },
 };

@@ -15,7 +15,12 @@
     "typecheck": "tsc --noEmit && tsc -p tsconfig.main.json --noEmit",
     "dist": "npm run build && electron-builder",
     "dist:win": "npm run build && electron-builder --win",
-    "dist:mac": "npm run build && electron-builder --mac"
+    "dist:mac": "npm run build && electron-builder --mac",
+    "lint": "eslint . --ext .ts,.tsx",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "prepare": "husky install"
   },
   "dependencies": {
     "electron-store": "^6.0.1",
@@ -27,12 +32,22 @@
   "devDependencies": {
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
+    "@typescript-eslint/eslint-plugin": "^8.53.1",
+    "@typescript-eslint/parser": "^8.53.1",
     "@vitejs/plugin-react": "^4.2.0",
     "concurrently": "^8.2.2",
     "cross-env": "^10.1.0",
     "electron": "^28.0.0",
     "electron-builder": "^24.13.3",
     "electron-icon-builder": "^2.0.1",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.8.1",
     "typescript": "^5.3.0",
     "vite": "^5.0.0"
   },
@@ -65,6 +80,14 @@
         "owner": "katamarinaki",
         "repo": "backlog-hero"
       }
+    ]
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix"
+    ],
+    "*.{json,md,css}": [
+      "prettier --write"
     ]
   }
 }
