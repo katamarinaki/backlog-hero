@@ -8,6 +8,8 @@ import type {
   GameAchievements,
 } from '../types/electron';
 
+import styles from './GameCardModal.module.css';
+
 interface GameCardModalProps {
   game: SteamGame;
   rating?: GameRating;
@@ -163,14 +165,24 @@ function GameCardModal({
     return '#a34c4c';
   };
 
+  const getStatusPillClass = (status: GameStatusType) => {
+    const statusMap: Record<GameStatusType, string> = {
+      completed: styles.statusCompleted,
+      in_progress: styles.statusInProgress,
+      dropped: styles.statusDropped,
+      backlog: styles.statusBacklog,
+    };
+    return statusMap[status];
+  };
+
   return (
-    <div className="modal-backdrop" onClick={handleBackdropClick}>
-      <div className="modal-content">
-        <button className="modal-close" onClick={onClose}>
+    <div className={styles.modalBackdrop} onClick={handleBackdropClick}>
+      <div className={styles.modalContent}>
+        <button className={styles.modalClose} onClick={onClose}>
           &times;
         </button>
 
-        <div className="modal-header-image">
+        <div className={styles.modalHeaderImage}>
           <img
             src={getHeaderImageUrl(game.appid)}
             alt={game.name}
@@ -180,18 +192,18 @@ function GameCardModal({
           />
         </div>
 
-        <div className="modal-body">
-          <h2 className="modal-title">{game.name}</h2>
+        <div className={styles.modalBody}>
+          <h2 className={styles.modalTitle}>{game.name}</h2>
 
-          <div className="status-section">
-            <label className="section-label">Game Status</label>
-            <div className="status-pills">
+          <div className={styles.statusSection}>
+            <label className={styles.sectionLabel}>Game Status</label>
+            <div className={styles.statusPills}>
               {(['backlog', 'in_progress', 'completed', 'dropped'] as const).map((status) => {
                 const isDisabled = status === 'completed' && isEndless;
                 return (
                   <button
                     key={status}
-                    className={`status-pill ${selectedStatus === status ? 'active' : ''} status-${status} ${isDisabled ? 'disabled' : ''}`}
+                    className={`${styles.statusPill} ${selectedStatus === status ? `${styles.statusPillActive} ${getStatusPillClass(status)}` : ''} ${isDisabled ? styles.statusPillDisabled : ''}`}
                     onClick={() => !isDisabled && handleStatusChange(status)}
                     type="button"
                     disabled={isDisabled}
@@ -202,21 +214,21 @@ function GameCardModal({
                 );
               })}
               <button
-                className={`status-pill ${selectedStatus === null ? 'active' : ''} status-none`}
+                className={`${styles.statusPill} ${selectedStatus === null ? `${styles.statusPillActive} ${styles.statusNone}` : ''}`}
                 onClick={() => handleStatusChange(null)}
                 type="button"
               >
                 Clear
               </button>
             </div>
-            <div className="endless-toggle">
-              <label className="endless-checkbox">
+            <div className={styles.endlessToggle}>
+              <label className={styles.endlessCheckbox}>
                 <input type="checkbox" checked={isEndless} onChange={handleEndlessToggle} />
-                <span className="checkbox-label">Endless game (no campaign/story to complete)</span>
+                <span className={styles.checkboxLabel}>Endless game (no campaign/story to complete)</span>
               </label>
             </div>
             {selectedStatus === 'completed' && !isEndless && (
-              <div className="completion-date">
+              <div className={styles.completionDate}>
                 <label htmlFor="completed-date">Completion date (optional)</label>
                 <input
                   type="date"
@@ -228,36 +240,36 @@ function GameCardModal({
             )}
           </div>
 
-          <div className="modal-stats">
-            <div className="stat-item">
-              <span className="stat-label">Total Playtime</span>
-              <span className="stat-value">{formatPlaytime(game.playtime_forever)}</span>
+          <div className={styles.modalStats}>
+            <div className={styles.statItem}>
+              <span className={styles.statLabel}>Total Playtime</span>
+              <span className={styles.statValue}>{formatPlaytime(game.playtime_forever)}</span>
             </div>
 
             {game.playtime_2weeks && (
-              <div className="stat-item">
-                <span className="stat-label">Last 2 Weeks</span>
-                <span className="stat-value">{formatPlaytime(game.playtime_2weeks)}</span>
+              <div className={styles.statItem}>
+                <span className={styles.statLabel}>Last 2 Weeks</span>
+                <span className={styles.statValue}>{formatPlaytime(game.playtime_2weeks)}</span>
               </div>
             )}
 
-            <div className="stat-item">
-              <span className="stat-label">Last Played</span>
-              <span className="stat-value">{formatLastPlayed(game.rtime_last_played)}</span>
+            <div className={styles.statItem}>
+              <span className={styles.statLabel}>Last Played</span>
+              <span className={styles.statValue}>{formatLastPlayed(game.rtime_last_played)}</span>
             </div>
 
-            <div className="stat-item">
-              <span className="stat-label">App ID</span>
-              <span className="stat-value">{game.appid}</span>
+            <div className={styles.statItem}>
+              <span className={styles.statLabel}>App ID</span>
+              <span className={styles.statValue}>{game.appid}</span>
             </div>
 
             {achievements && (
-              <div className="stat-item">
-                <span className="stat-label">Achievements</span>
-                <span className="stat-value">
+              <div className={styles.statItem}>
+                <span className={styles.statLabel}>Achievements</span>
+                <span className={styles.statValue}>
                   {achievements.achieved} / {achievements.total}
                   {achievements.total > 0 && (
-                    <span className="achievement-percent">
+                    <span className={styles.achievementPercent}>
                       {' '}
                       ({Math.round((achievements.achieved / achievements.total) * 100)}%)
                     </span>
@@ -268,18 +280,18 @@ function GameCardModal({
           </div>
 
           {rating && (
-            <div className="modal-rating" style={{ borderColor: getRatingColor(rating.score) }}>
-              <div className="rating-header" style={{ color: getRatingColor(rating.score) }}>
+            <div className={styles.modalRating} style={{ borderColor: getRatingColor(rating.score) }}>
+              <div className={styles.ratingHeader} style={{ color: getRatingColor(rating.score) }}>
                 {rating.description}
               </div>
-              <div className="rating-details">
+              <div className={styles.ratingDetails}>
                 <span>{rating.score}% positive</span>
-                <span className="rating-separator">|</span>
+                <span className={styles.ratingSeparator}>|</span>
                 <span>{rating.total.toLocaleString()} reviews</span>
               </div>
-              <div className="rating-bar">
+              <div className={styles.ratingBar}>
                 <div
-                  className="rating-bar-positive"
+                  className={styles.ratingBarPositive}
                   style={{
                     width: `${rating.score}%`,
                     backgroundColor: getRatingColor(rating.score),
@@ -289,7 +301,7 @@ function GameCardModal({
             </div>
           )}
 
-          <div className="modal-notes">
+          <div className={styles.modalNotes}>
             <label htmlFor="game-notes">Your Notes</label>
             <textarea
               id="game-notes"
@@ -299,7 +311,7 @@ function GameCardModal({
               rows={5}
             />
             <button
-              className="btn-primary"
+              className={styles.btnPrimary}
               onClick={handleSaveNote}
               disabled={saving || note === initialNote}
             >
@@ -307,12 +319,12 @@ function GameCardModal({
             </button>
           </div>
 
-          <div className="modal-actions">
+          <div className={styles.modalActions}>
             <a
               href={`https://store.steampowered.com/app/${game.appid}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="btn-secondary"
+              className={styles.btnSecondary}
             >
               View on Steam
             </a>

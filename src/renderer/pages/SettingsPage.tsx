@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 
+import styles from './SettingsPage.module.css';
+
 function SettingsPage() {
   const [apiKey, setApiKey] = useState('');
   const [steamId, setSteamId] = useState('');
@@ -75,14 +77,14 @@ function SettingsPage() {
   };
 
   return (
-    <div className="settings-page">
+    <div className={styles.settingsPage}>
       <h1>Settings</h1>
-      <p className="settings-description">
+      <p className={styles.settingsDescription}>
         Configure your Steam API credentials to fetch your game library.
       </p>
 
-      <form onSubmit={handleSave} className="settings-form">
-        <div className="form-group">
+      <form onSubmit={handleSave} className={styles.settingsForm}>
+        <div className={styles.formGroup}>
           <label htmlFor="apiKey">Steam API Key</label>
           <input
             type="password"
@@ -103,7 +105,7 @@ function SettingsPage() {
           </small>
         </div>
 
-        <div className="form-group">
+        <div className={styles.formGroup}>
           <label htmlFor="steamId">Steam ID</label>
           <input
             type="text"
@@ -120,21 +122,25 @@ function SettingsPage() {
           </small>
         </div>
 
-        {status && <div className={`status-message ${status.type}`}>{status.message}</div>}
+        {status && (
+          <div className={`${styles.statusMessage} ${status.type === 'success' ? styles.success : styles.error}`}>
+            {status.message}
+          </div>
+        )}
 
-        <button type="submit" className="btn-primary" disabled={loading}>
+        <button type="submit" className={styles.btnPrimary} disabled={loading}>
           {loading ? 'Saving...' : 'Save Settings'}
         </button>
       </form>
 
-      <div className="settings-section">
+      <div className={styles.settingsSection}>
         <h2>Data</h2>
-        <p className="settings-description">Export or import all local data for this app.</p>
-        <div className="settings-actions">
-          <button className="btn-secondary" onClick={handleExport} disabled={dataLoading}>
+        <p className={styles.settingsDescription}>Export or import all local data for this app.</p>
+        <div className={styles.settingsActions}>
+          <button className={styles.btnSecondary} onClick={handleExport} disabled={dataLoading}>
             {dataLoading ? 'Working...' : 'Export Data'}
           </button>
-          <button className="btn-secondary" onClick={handleImport} disabled={dataLoading}>
+          <button className={styles.btnSecondary} onClick={handleImport} disabled={dataLoading}>
             {dataLoading ? 'Working...' : 'Import Data'}
           </button>
         </div>

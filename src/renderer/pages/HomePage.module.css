@@ -1,0 +1,349 @@
+.homePage h1 {
+  margin-bottom: 1.5rem;
+}
+
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.gameCount {
+  color: var(--text-secondary);
+}
+
+.completedCount {
+  color: var(--success);
+}
+
+/* Buttons */
+.btnPrimary {
+  background-color: var(--accent);
+  color: var(--bg-primary);
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+}
+
+.btnPrimary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btnSecondary {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s;
+}
+
+.btnSecondary:hover:not(:disabled) {
+  background-color: var(--bg-card);
+  border-color: var(--accent);
+}
+
+.btnSecondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Filters Bar */
+.filtersBar {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.searchBox {
+  flex: 1;
+  min-width: 200px;
+  max-width: 400px;
+}
+
+.searchBox input {
+  width: 100%;
+  padding: 0.625rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.searchBox input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.searchBox input::placeholder {
+  color: var(--text-secondary);
+}
+
+.filterOptions {
+  display: flex;
+  align-items: center;
+}
+
+.filterSelect {
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23b8b6b4' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+}
+
+.filterSelect:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.sortOptions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.sortLabel {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-right: 0.25rem;
+}
+
+.sortBtn {
+  background-color: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sortBtn:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.sortBtnActive {
+  background-color: var(--bg-secondary);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Empty State */
+.emptyState {
+  text-align: center;
+  padding: 4rem 2rem;
+  background-color: var(--bg-card);
+  border-radius: 8px;
+}
+
+.emptyState h2 {
+  margin-bottom: 1rem;
+}
+
+.emptyState p {
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+}
+
+/* Error Message */
+.errorMessage {
+  background-color: rgba(205, 92, 92, 0.2);
+  border: 1px solid var(--error);
+  color: var(--error);
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+}
+
+/* Games Grid */
+.gamesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.gameCard {
+  background-color: var(--bg-card);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  padding: 1rem;
+  gap: 1rem;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+  cursor: pointer;
+  position: relative;
+}
+
+.gameCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Game Card Status Variants */
+.statusCompleted {
+  border: 1px solid var(--status-completed);
+}
+
+.statusInProgress {
+  border: 1px solid var(--status-in-progress);
+}
+
+.statusDropped {
+  border: 1px solid var(--status-dropped);
+}
+
+.statusBacklog {
+  border: 1px solid var(--status-backlog);
+}
+
+.gameImage {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.gameImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.noImage {
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.625rem;
+  color: var(--text-secondary);
+  border-radius: 4px;
+}
+
+.gameInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.gameTitle {
+  font-size: 0.95rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 0.25rem;
+}
+
+.gamePlaytime {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.recentPlaytime {
+  color: var(--accent);
+}
+
+.gameRating {
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+.gameAchievements {
+  font-size: 0.8rem;
+  color: var(--accent);
+  margin-top: 0.25rem;
+}
+
+.hasNote {
+  color: var(--accent);
+  margin-left: 0.25rem;
+}
+
+/* Status Badge */
+.statusBadge {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.statusBadgeCompleted {
+  background-color: var(--status-completed);
+  color: white;
+}
+
+.statusBadgeInProgress {
+  background-color: var(--status-in-progress);
+  color: var(--bg-primary);
+}
+
+.statusBadgeDropped {
+  background-color: var(--status-dropped);
+  color: white;
+}
+
+.statusBadgeBacklog {
+  background-color: var(--status-backlog);
+  color: var(--bg-primary);
+}
+
+/* Endless Badge */
+.endlessBadge {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  background-color: var(--status-endless);
+  color: white;
+  font-size: 0.6rem;
+  font-weight: 600;
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}

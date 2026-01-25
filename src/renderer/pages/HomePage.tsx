@@ -10,6 +10,8 @@ import type {
   SteamGame,
 } from '../types/electron';
 
+import styles from './HomePage.module.css';
+
 type SortOption = 'playtime' | 'name' | 'rating' | 'last_played' | 'status_date';
 
 function HomePage() {
@@ -260,11 +262,11 @@ function HomePage() {
 
   if (!hasSettings) {
     return (
-      <div className="home-page">
-        <div className="empty-state">
+      <div className={styles.homePage}>
+        <div className={styles.emptyState}>
           <h2>Welcome to Backlog Hero</h2>
           <p>To get started, configure your Steam API credentials in the settings.</p>
-          <Link to="/settings" className="btn-primary">
+          <Link to="/settings" className={styles.btnPrimary}>
             Go to Settings
           </Link>
         </div>
@@ -272,28 +274,49 @@ function HomePage() {
     );
   }
 
+  const getStatusCardClass = (status?: string) => {
+    if (!status) return '';
+    const statusMap: Record<string, string> = {
+      completed: styles.statusCompleted,
+      in_progress: styles.statusInProgress,
+      dropped: styles.statusDropped,
+      backlog: styles.statusBacklog,
+    };
+    return statusMap[status] || '';
+  };
+
+  const getStatusBadgeClass = (status: string) => {
+    const statusMap: Record<string, string> = {
+      completed: styles.statusBadgeCompleted,
+      in_progress: styles.statusBadgeInProgress,
+      dropped: styles.statusBadgeDropped,
+      backlog: styles.statusBadgeBacklog,
+    };
+    return statusMap[status] || '';
+  };
+
   return (
-    <div className="home-page">
-      <div className="page-header">
+    <div className={styles.homePage}>
+      <div className={styles.pageHeader}>
         <h1>Your Library</h1>
-        <div className="header-actions">
-          <span className="game-count">
+        <div className={styles.headerActions}>
+          <span className={styles.gameCount}>
             {filteredAndSortedGames.length} / {games.length} games
-            <span className="completed-count"> ({statusCounts.completed} completed)</span>
+            <span className={styles.completedCount}> ({statusCounts.completed} completed)</span>
           </span>
-          <button onClick={handleRefresh} className="btn-primary" disabled={loading}>
+          <button onClick={handleRefresh} className={styles.btnPrimary} disabled={loading}>
             {loading ? 'Refreshing...' : 'Refresh Library'}
           </button>
           <button
             onClick={handleFetchRatings}
-            className="btn-secondary"
+            className={styles.btnSecondary}
             disabled={loadingRatings || games.length === 0}
           >
             {loadingRatings ? 'Loading Ratings...' : 'Fetch Ratings'}
           </button>
           <button
             onClick={handleFetchAchievements}
-            className="btn-secondary"
+            className={styles.btnSecondary}
             disabled={loadingAchievements || games.length === 0}
           >
             {loadingAchievements ? 'Loading Achievements...' : 'Fetch Achievements'}
@@ -301,8 +324,8 @@ function HomePage() {
         </div>
       </div>
 
-      <div className="filters-bar">
-        <div className="search-box">
+      <div className={styles.filtersBar}>
+        <div className={styles.searchBox}>
           <input
             type="text"
             placeholder="Search games..."
@@ -310,11 +333,11 @@ function HomePage() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <div className="filter-options">
+        <div className={styles.filterOptions}>
           <select
             value={statusFilter}
             onChange={(e) => handleStatusFilterChange(e.target.value as StatusFilter)}
-            className="filter-select"
+            className={styles.filterSelect}
           >
             <option value="all">All Games</option>
             <option value="completed">Completed</option>
@@ -325,28 +348,28 @@ function HomePage() {
             <option value="untracked">Untracked</option>
           </select>
         </div>
-        <div className="sort-options">
-          <span className="sort-label">Sort by:</span>
+        <div className={styles.sortOptions}>
+          <span className={styles.sortLabel}>Sort by:</span>
           <button
-            className={`sort-btn ${sortBy === 'playtime' ? 'active' : ''}`}
+            className={`${styles.sortBtn} ${sortBy === 'playtime' ? styles.sortBtnActive : ''}`}
             onClick={() => handleSortChange('playtime')}
           >
             Playtime {sortBy === 'playtime' && (sortAsc ? '↑' : '↓')}
           </button>
           <button
-            className={`sort-btn ${sortBy === 'name' ? 'active' : ''}`}
+            className={`${styles.sortBtn} ${sortBy === 'name' ? styles.sortBtnActive : ''}`}
             onClick={() => handleSortChange('name')}
           >
             Name {sortBy === 'name' && (sortAsc ? '↑' : '↓')}
           </button>
           <button
-            className={`sort-btn ${sortBy === 'rating' ? 'active' : ''}`}
+            className={`${styles.sortBtn} ${sortBy === 'rating' ? styles.sortBtnActive : ''}`}
             onClick={() => handleSortChange('rating')}
           >
             Rating {sortBy === 'rating' && (sortAsc ? '↑' : '↓')}
           </button>
           <button
-            className={`sort-btn ${sortBy === 'last_played' ? 'active' : ''}`}
+            className={`${styles.sortBtn} ${sortBy === 'last_played' ? styles.sortBtnActive : ''}`}
             onClick={() => handleSortChange('last_played')}
           >
             Last Played {sortBy === 'last_played' && (sortAsc ? '↑' : '↓')}
@@ -354,18 +377,18 @@ function HomePage() {
         </div>
       </div>
 
-      {error && <div className="error-message">{error}</div>}
+      {error && <div className={styles.errorMessage}>{error}</div>}
 
       {games.length === 0 && !loading ? (
-        <div className="empty-state">
+        <div className={styles.emptyState}>
           <p>No games loaded yet. Click &quot;Refresh Library&quot; to fetch your games.</p>
         </div>
       ) : filteredAndSortedGames.length === 0 ? (
-        <div className="empty-state">
+        <div className={styles.emptyState}>
           <p>No games match your filters.</p>
         </div>
       ) : (
-        <div className="games-grid">
+        <div className={styles.gamesGrid}>
           {filteredAndSortedGames.map((game) => {
             const rating = ratings[game.appid];
             const hasNote = !!notes[game.appid];
@@ -375,49 +398,49 @@ function HomePage() {
             return (
               <div
                 key={game.appid}
-                className={`game-card ${gameStatus ? `status-${gameStatus}` : ''} ${isEndless ? 'endless' : ''}`}
+                className={`${styles.gameCard} ${getStatusCardClass(gameStatus)}`}
                 onClick={() => setSelectedGame(game)}
               >
                 {gameStatus && (
-                  <div className={`status-badge status-${gameStatus}`}>
+                  <div className={`${styles.statusBadge} ${getStatusBadgeClass(gameStatus)}`}>
                     {gameStatus === 'in_progress'
                       ? 'In Progress'
                       : gameStatus.charAt(0).toUpperCase() + gameStatus.slice(1)}
                   </div>
                 )}
-                {isEndless && <div className="endless-badge">Endless</div>}
-                <div className="game-image">
+                {isEndless && <div className={styles.endlessBadge}>Endless</div>}
+                <div className={styles.gameImage}>
                   {game.img_icon_url ? (
                     <img src={getGameImageUrl(game.appid, game.img_icon_url)} alt={game.name} />
                   ) : (
-                    <div className="no-image">No Image</div>
+                    <div className={styles.noImage}>No Image</div>
                   )}
                 </div>
-                <div className="game-info">
-                  <h3 className="game-title">
+                <div className={styles.gameInfo}>
+                  <h3 className={styles.gameTitle}>
                     {game.name}
                     {hasNote && (
-                      <span className="has-note" title="Has notes">
+                      <span className={styles.hasNote} title="Has notes">
                         *
                       </span>
                     )}
                   </h3>
-                  <p className="game-playtime">
+                  <p className={styles.gamePlaytime}>
                     {formatPlaytime(game.playtime_forever)}
                     {game.playtime_2weeks && (
-                      <span className="recent-playtime">
+                      <span className={styles.recentPlaytime}>
                         {' '}
                         ({formatPlaytime(game.playtime_2weeks)} last 2 weeks)
                       </span>
                     )}
                   </p>
                   {rating && (
-                    <p className="game-rating" style={{ color: getRatingColor(rating.score) }}>
+                    <p className={styles.gameRating} style={{ color: getRatingColor(rating.score) }}>
                       {rating.description} ({rating.score}% of {rating.total.toLocaleString()})
                     </p>
                   )}
                   {gameAchievements && (
-                    <p className="game-achievements">
+                    <p className={styles.gameAchievements}>
                       Achievements: {gameAchievements.achieved}/{gameAchievements.total}
                     </p>
                   )}

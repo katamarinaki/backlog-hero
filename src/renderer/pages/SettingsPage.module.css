@@ -1,0 +1,131 @@
+.settingsPage {
+  max-width: 600px;
+}
+
+.settingsPage h1 {
+  margin-bottom: 0.5rem;
+}
+
+.settingsDescription {
+  color: var(--text-secondary);
+  margin-bottom: 2rem;
+}
+
+.settingsForm {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.settingsSection {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.settingsSection h2 {
+  margin-bottom: 0.5rem;
+}
+
+.settingsActions {
+  display: flex;
+  gap: 1rem;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.formGroup label {
+  font-weight: 600;
+}
+
+.formGroup input {
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 1rem;
+}
+
+.formGroup input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.formGroup small {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.formGroup small a {
+  color: var(--accent);
+}
+
+.statusMessage {
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+}
+
+.success {
+  background-color: rgba(91, 163, 43, 0.2);
+  border: 1px solid var(--success);
+  color: var(--success);
+}
+
+.error {
+  background-color: rgba(205, 92, 92, 0.2);
+  border: 1px solid var(--error);
+  color: var(--error);
+}
+
+/* Buttons */
+.btnPrimary {
+  background-color: var(--accent);
+  color: var(--bg-primary);
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+}
+
+.btnPrimary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btnSecondary {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s;
+}
+
+.btnSecondary:hover:not(:disabled) {
+  background-color: var(--bg-card);
+  border-color: var(--accent);
+}
+
+.btnSecondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
