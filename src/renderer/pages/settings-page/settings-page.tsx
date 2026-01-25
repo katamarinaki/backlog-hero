@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 
-import styles from './SettingsPage.module.css';
+import styles from './settings-page.module.css';
 
-function SettingsPage() {
+export const SettingsPage = () => {
   const [apiKey, setApiKey] = useState('');
   const [steamId, setSteamId] = useState('');
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -123,7 +123,9 @@ function SettingsPage() {
         </div>
 
         {status && (
-          <div className={`${styles.statusMessage} ${status.type === 'success' ? styles.success : styles.error}`}>
+          <div
+            className={`${styles.statusMessage} ${status.type === 'success' ? styles.success : styles.error}`}
+          >
             {status.message}
           </div>
         )}
@@ -147,6 +149,4 @@ function SettingsPage() {
       </div>
     </div>
   );
-}
-
-export default SettingsPage;
+};

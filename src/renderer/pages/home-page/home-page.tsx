@@ -1,20 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import GameCardModal from '../components/GameCardModal';
-import type {
-  GameAchievements,
-  GameRating,
-  GameStatus,
-  StatusFilter,
-  SteamGame,
-} from '../types/electron';
+import { GameCardModal } from 'components/game-card-modal';
+import type { GameAchievements, GameRating, GameStatus, StatusFilter, SteamGame } from 'types';
 
-import styles from './HomePage.module.css';
+import styles from './home-page.module.css';
 
 type SortOption = 'playtime' | 'name' | 'rating' | 'last_played' | 'status_date';
 
-function HomePage() {
+export const HomePage = () => {
   const [games, setGames] = useState<SteamGame[]>([]);
   const [ratings, setRatings] = useState<Record<number, GameRating>>({});
   const [notes, setNotes] = useState<Record<number, string>>({});
@@ -435,7 +429,10 @@ function HomePage() {
                     )}
                   </p>
                   {rating && (
-                    <p className={styles.gameRating} style={{ color: getRatingColor(rating.score) }}>
+                    <p
+                      className={styles.gameRating}
+                      style={{ color: getRatingColor(rating.score) }}
+                    >
                       {rating.description} ({rating.score}% of {rating.total.toLocaleString()})
                     </p>
                   )}
@@ -465,6 +462,4 @@ function HomePage() {
       )}
     </div>
   );
-}
-
-export default HomePage;
+};

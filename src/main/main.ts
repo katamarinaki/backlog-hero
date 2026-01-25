@@ -1,9 +1,9 @@
 import * as path from 'path';
 import * as fs from 'fs/promises';
 
-import { app, BrowserWindow, dialog, ipcMain, net } from 'electron';
 import Store from 'electron-store';
 import { autoUpdater } from 'electron-updater';
+import { app, BrowserWindow, dialog, ipcMain, net } from 'electron';
 
 interface GameRating {
   positive: number;

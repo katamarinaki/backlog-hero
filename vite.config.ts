@@ -11,6 +11,8 @@ export default {
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src/renderer'),
+      components: path.resolve(__dirname, './src/renderer/components'),
+      pages: path.resolve(__dirname, './src/renderer/pages'),
     },
   },
 };

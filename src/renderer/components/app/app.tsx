@@ -1,10 +1,11 @@
 import { Routes, Route, Link } from 'react-router-dom';
 
-import HomePage from './pages/HomePage';
-import SettingsPage from './pages/SettingsPage';
-import styles from './App.module.css';
+import { HomePage } from 'pages/home-page';
+import { SettingsPage } from 'pages/settings-page';
 
-function App() {
+import styles from './app.module.css';
+
+export const App = () => {
   return (
     <div className={styles.app}>
       <nav className={styles.navbar}>
@@ -26,6 +27,4 @@ function App() {
       </main>
     </div>
   );
-}
-
-export default App;
+};

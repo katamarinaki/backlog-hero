@@ -1,16 +1,10 @@
 import { useState, useEffect } from 'react';
 
-import type {
-  SteamGame,
-  GameRating,
-  GameStatus,
-  GameStatusType,
-  GameAchievements,
-} from '../types/electron';
+import type { SteamGame, GameRating, GameStatus, GameStatusType, GameAchievements } from 'types';
 
-import styles from './GameCardModal.module.css';
+import styles from './game-card-modal.module.css';
 
-interface GameCardModalProps {
+type Props = {
   game: SteamGame;
   rating?: GameRating;
   note: string;
@@ -19,9 +13,9 @@ interface GameCardModalProps {
   onClose: () => void;
   onSaveNote: (note: string) => void;
   onSaveStatus: (status: GameStatus | null) => void;
-}
+};
 
-function GameCardModal({
+export const GameCardModal = ({
   game,
   rating,
   note: initialNote,
@@ -30,7 +24,7 @@ function GameCardModal({
   onClose,
   onSaveNote,
   onSaveStatus,
-}: GameCardModalProps) {
+}: Props) => {
   const [note, setNote] = useState(initialNote);
   const [saving, setSaving] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<GameStatusType | null>(
@@ -224,7 +218,9 @@ function GameCardModal({
             <div className={styles.endlessToggle}>
               <label className={styles.endlessCheckbox}>
                 <input type="checkbox" checked={isEndless} onChange={handleEndlessToggle} />
-                <span className={styles.checkboxLabel}>Endless game (no campaign/story to complete)</span>
+                <span className={styles.checkboxLabel}>
+                  Endless game (no campaign/story to complete)
+                </span>
               </label>
             </div>
             {selectedStatus === 'completed' && !isEndless && (
@@ -280,7 +276,10 @@ function GameCardModal({
           </div>
 
           {rating && (
-            <div className={styles.modalRating} style={{ borderColor: getRatingColor(rating.score) }}>
+            <div
+              className={styles.modalRating}
+              style={{ borderColor: getRatingColor(rating.score) }}
+            >
               <div className={styles.ratingHeader} style={{ color: getRatingColor(rating.score) }}>
                 {rating.description}
               </div>
@@ -333,6 +332,4 @@ function GameCardModal({
       </div>
     </div>
   );
-}
-
-export default GameCardModal;
+};

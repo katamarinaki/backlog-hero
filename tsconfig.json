@@ -14,7 +14,12 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": "./src/renderer",
+    "paths": {
+      "components/*": ["components/*"],
+      "pages/*": ["pages/*"]
+    }
   },
   "include": ["src/renderer"]
 }

@@ -27,6 +27,11 @@ module.exports = {
     react: {
       version: 'detect',
     },
+    'import/resolver': {
+      typescript: {
+        project: './tsconfig.json',
+      },
+    },
   },
   rules: {
     'react/react-in-jsx-scope': 'off',
