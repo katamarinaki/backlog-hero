@@ -31,12 +31,20 @@ export interface GameCompletion {
 export type GameStatusType = 'completed' | 'in_progress' | 'dropped' | 'backlog';
 
 export interface GameStatus {
-  status: GameStatusType;
+  status?: GameStatusType;
   statusDate?: string;
   completedDate?: string;
+  isEndless?: boolean;
 }
 
-export type StatusFilter = 'all' | 'completed' | 'in_progress' | 'dropped' | 'backlog' | 'untracked';
+export type StatusFilter =
+  | 'all'
+  | 'completed'
+  | 'in_progress'
+  | 'dropped'
+  | 'backlog'
+  | 'untracked'
+  | 'endless';
 
 export interface GameAchievements {
   achieved: number;

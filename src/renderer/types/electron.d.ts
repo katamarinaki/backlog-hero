@@ -30,12 +30,20 @@ export interface GameCompletion {
 export type GameStatusType = 'completed' | 'in_progress' | 'dropped' | 'backlog';
 
 export interface GameStatus {
-  status: GameStatusType;
+  status?: GameStatusType; // Optional - endless games may have no status
   statusDate?: string; // When status was last changed
   completedDate?: string; // Specific to 'completed' status
+  isEndless?: boolean; // Games without campaigns that can't be completed
 }
 
-export type StatusFilter = 'all' | 'completed' | 'in_progress' | 'dropped' | 'backlog' | 'untracked';
+export type StatusFilter =
+  | 'all'
+  | 'completed'
+  | 'in_progress'
+  | 'dropped'
+  | 'backlog'
+  | 'untracked'
+  | 'endless';
 
 export interface GameAchievements {
   achieved: number;

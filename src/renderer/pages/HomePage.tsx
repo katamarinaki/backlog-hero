@@ -163,9 +163,12 @@ function HomePage() {
   };
 
   const statusCounts = useMemo(() => {
-    const counts = { completed: 0, in_progress: 0, dropped: 0, backlog: 0 };
+    const counts = { completed: 0, in_progress: 0, dropped: 0, backlog: 0, endless: 0 };
     Object.values(statuses).forEach((s) => {
-      if (s.status in counts) {
+      if (s.isEndless) {
+        counts.endless++;
+      }
+      if (s.status && s.status in counts) {
         counts[s.status]++;
       }
     });
@@ -185,6 +188,8 @@ function HomePage() {
     if (statusFilter !== 'all') {
       if (statusFilter === 'untracked') {
         result = result.filter((game) => !statuses[game.appid]);
+      } else if (statusFilter === 'endless') {
+        result = result.filter((game) => statuses[game.appid]?.isEndless);
       } else {
         result = result.filter((game) => statuses[game.appid]?.status === statusFilter);
       }
@@ -316,6 +321,7 @@ function HomePage() {
             <option value="in_progress">In Progress</option>
             <option value="backlog">Backlog</option>
             <option value="dropped">Dropped</option>
+            <option value="endless">Endless</option>
             <option value="untracked">Untracked</option>
           </select>
         </div>
@@ -364,11 +370,12 @@ function HomePage() {
             const rating = ratings[game.appid];
             const hasNote = !!notes[game.appid];
             const gameStatus = statuses[game.appid]?.status;
+            const isEndless = statuses[game.appid]?.isEndless;
             const gameAchievements = achievements[game.appid];
             return (
               <div
                 key={game.appid}
-                className={`game-card ${gameStatus ? `status-${gameStatus}` : ''}`}
+                className={`game-card ${gameStatus ? `status-${gameStatus}` : ''} ${isEndless ? 'endless' : ''}`}
                 onClick={() => setSelectedGame(game)}
               >
                 {gameStatus && (
@@ -378,6 +385,7 @@ function HomePage() {
                       : gameStatus.charAt(0).toUpperCase() + gameStatus.slice(1)}
                   </div>
                 )}
+                {isEndless && <div className="endless-badge">Endless</div>}
                 <div className="game-image">
                   {game.img_icon_url ? (
                     <img src={getGameImageUrl(game.appid, game.img_icon_url)} alt={game.name} />

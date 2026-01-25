@@ -21,12 +21,20 @@ interface GameCompletion {
 type GameStatusType = 'completed' | 'in_progress' | 'dropped' | 'backlog';
 
 interface GameStatus {
-  status: GameStatusType;
+  status?: GameStatusType;
   statusDate?: string;
   completedDate?: string;
+  isEndless?: boolean;
 }
 
-type StatusFilter = 'all' | 'completed' | 'in_progress' | 'dropped' | 'backlog' | 'untracked';
+type StatusFilter =
+  | 'all'
+  | 'completed'
+  | 'in_progress'
+  | 'dropped'
+  | 'backlog'
+  | 'untracked'
+  | 'endless';
 
 interface GameAchievements {
   achieved: number;
@@ -494,6 +502,7 @@ function sanitizeFilterPreferences(value: unknown): FilterPreferences | null {
     'dropped',
     'backlog',
     'untracked',
+    'endless',
   ] as const;
   const sortByValues = ['playtime', 'name', 'rating', 'last_played', 'status_date'] as const;
 

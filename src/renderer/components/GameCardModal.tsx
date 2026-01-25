@@ -35,6 +35,7 @@ function GameCardModal({
     initialStatus?.status ?? null,
   );
   const [completedDate, setCompletedDate] = useState(initialStatus?.completedDate ?? '');
+  const [isEndless, setIsEndless] = useState(initialStatus?.isEndless ?? false);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -59,11 +60,19 @@ function GameCardModal({
 
     if (newStatus === null) {
       setCompletedDate('');
-      await onSaveStatus(null);
+      if (isEndless) {
+        // Keep endless flag but clear status
+        await onSaveStatus({
+          isEndless: true,
+        });
+      } else {
+        await onSaveStatus(null);
+      }
     } else {
       const statusObj: GameStatus = {
         status: newStatus,
         statusDate: new Date().toISOString(),
+        isEndless: isEndless || undefined,
       };
 
       if (newStatus === 'completed' && completedDate) {
@@ -71,6 +80,37 @@ function GameCardModal({
       }
 
       await onSaveStatus(statusObj);
+    }
+  };
+
+  const handleEndlessToggle = async () => {
+    const newIsEndless = !isEndless;
+    setIsEndless(newIsEndless);
+
+    // If marking as endless and currently completed, clear the status
+    if (newIsEndless && selectedStatus === 'completed') {
+      setSelectedStatus(null);
+      setCompletedDate('');
+      await onSaveStatus({
+        isEndless: true,
+      });
+    } else if (newIsEndless) {
+      // Just mark as endless, keep current status (or no status)
+      await onSaveStatus({
+        status: selectedStatus || undefined,
+        statusDate: selectedStatus ? new Date().toISOString() : undefined,
+        isEndless: true,
+      });
+    } else if (!newIsEndless && !selectedStatus) {
+      // Unmarking endless with no status - clear everything
+      await onSaveStatus(null);
+    } else {
+      // Unmarking endless but has a status - keep the status
+      await onSaveStatus({
+        status: selectedStatus!,
+        statusDate: new Date().toISOString(),
+        completedDate: selectedStatus === 'completed' ? completedDate || undefined : undefined,
+      });
     }
   };
 
@@ -146,16 +186,21 @@ function GameCardModal({
           <div className="status-section">
             <label className="section-label">Game Status</label>
             <div className="status-pills">
-              {(['backlog', 'in_progress', 'completed', 'dropped'] as const).map((status) => (
-                <button
-                  key={status}
-                  className={`status-pill ${selectedStatus === status ? 'active' : ''} status-${status}`}
-                  onClick={() => handleStatusChange(status)}
-                  type="button"
-                >
-                  {getStatusLabel(status)}
-                </button>
-              ))}
+              {(['backlog', 'in_progress', 'completed', 'dropped'] as const).map((status) => {
+                const isDisabled = status === 'completed' && isEndless;
+                return (
+                  <button
+                    key={status}
+                    className={`status-pill ${selectedStatus === status ? 'active' : ''} status-${status} ${isDisabled ? 'disabled' : ''}`}
+                    onClick={() => !isDisabled && handleStatusChange(status)}
+                    type="button"
+                    disabled={isDisabled}
+                    title={isDisabled ? 'Endless games cannot be completed' : undefined}
+                  >
+                    {getStatusLabel(status)}
+                  </button>
+                );
+              })}
               <button
                 className={`status-pill ${selectedStatus === null ? 'active' : ''} status-none`}
                 onClick={() => handleStatusChange(null)}
@@ -164,7 +209,17 @@ function GameCardModal({
                 Clear
               </button>
             </div>
-            {selectedStatus === 'completed' && (
+            <div className="endless-toggle">
+              <label className="endless-checkbox">
+                <input
+                  type="checkbox"
+                  checked={isEndless}
+                  onChange={handleEndlessToggle}
+                />
+                <span className="checkbox-label">Endless game (no campaign/story to complete)</span>
+              </label>
+            </div>
+            {selectedStatus === 'completed' && !isEndless && (
               <div className="completion-date">
                 <label htmlFor="completed-date">Completion date (optional)</label>
                 <input
