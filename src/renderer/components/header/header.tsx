@@ -1,18 +1,21 @@
-import { Link } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 
 import styles from './header.module.css';
+
+const getLinkClass = ({ isActive }: { isActive: boolean }) =>
+  `${styles.navLink} ${isActive ? styles.navLinkActive : ''}`;
 
 export const Header = () => {
   return (
     <nav className={styles.navbar}>
       <div className={styles.navBrand}>Backlog Hero</div>
       <div className={styles.navLinks}>
-        <Link to="/" className={styles.navLink}>
+        <NavLink to="/" className={getLinkClass} end>
           Library
-        </Link>
-        <Link to="/settings" className={styles.navLink}>
+        </NavLink>
+        <NavLink to="/settings" className={getLinkClass}>
           Settings
-        </Link>
+        </NavLink>
       </div>
     </nav>
   );

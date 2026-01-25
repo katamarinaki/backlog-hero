@@ -29,3 +29,7 @@
 .navLink:hover {
   background-color: var(--bg-primary);
 }
+
+.navLinkActive {
+  color: var(--accent);
+}
