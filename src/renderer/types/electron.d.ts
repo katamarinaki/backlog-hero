@@ -53,6 +53,8 @@ export interface ElectronAPI {
   fetchAchievements: (appids: number[]) => Promise<Record<number, GameAchievements>>;
   getFilterPreferences: () => Promise<FilterPreferences>;
   saveFilterPreferences: (preferences: FilterPreferences) => Promise<boolean>;
+  exportData: () => Promise<boolean>;
+  importData: () => Promise<boolean>;
 }
 
 declare global {

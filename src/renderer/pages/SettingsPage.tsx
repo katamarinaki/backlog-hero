@@ -5,6 +5,7 @@ function SettingsPage() {
   const [steamId, setSteamId] = useState('');
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [dataLoading, setDataLoading] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -32,6 +33,44 @@ function SettingsPage() {
       setStatus({ type: 'error', message: 'Failed to save settings' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleExport = async () => {
+    setDataLoading(true);
+    setStatus(null);
+
+    try {
+      const exported = await window.electronAPI.exportData();
+      if (exported) {
+        setStatus({ type: 'success', message: 'Data exported successfully.' });
+      }
+    } catch (error) {
+      console.error('Failed to export data:', error);
+      setStatus({ type: 'error', message: 'Failed to export data.' });
+    } finally {
+      setDataLoading(false);
+    }
+  };
+
+  const handleImport = async () => {
+    setDataLoading(true);
+    setStatus(null);
+
+    try {
+      const imported = await window.electronAPI.importData();
+      if (imported) {
+        setStatus({
+          type: 'success',
+          message: 'Data imported. Refreshing the app...',
+        });
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Failed to import data:', error);
+      setStatus({ type: 'error', message: 'Failed to import data.' });
+    } finally {
+      setDataLoading(false);
     }
   };
 
@@ -87,6 +126,19 @@ function SettingsPage() {
           {loading ? 'Saving...' : 'Save Settings'}
         </button>
       </form>
+
+      <div className="settings-section">
+        <h2>Data</h2>
+        <p className="settings-description">Export or import all local data for this app.</p>
+        <div className="settings-actions">
+          <button className="btn-secondary" onClick={handleExport} disabled={dataLoading}>
+            {dataLoading ? 'Working...' : 'Export Data'}
+          </button>
+          <button className="btn-secondary" onClick={handleImport} disabled={dataLoading}>
+            {dataLoading ? 'Working...' : 'Import Data'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

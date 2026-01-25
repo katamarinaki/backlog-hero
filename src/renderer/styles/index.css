@@ -140,6 +140,21 @@ body {
   gap: 1.5rem;
 }
 
+.settings-section {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.settings-section h2 {
+  margin-bottom: 0.5rem;
+}
+
+.settings-actions {
+  display: flex;
+  gap: 1rem;
+}
+
 .form-group {
   display: flex;
   flex-direction: column;

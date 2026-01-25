@@ -63,4 +63,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('get-filter-preferences'),
   saveFilterPreferences: (preferences: FilterPreferences): Promise<boolean> =>
     ipcRenderer.invoke('save-filter-preferences', preferences),
+  exportData: (): Promise<boolean> => ipcRenderer.invoke('export-data'),
+  importData: (): Promise<boolean> => ipcRenderer.invoke('import-data'),
 });

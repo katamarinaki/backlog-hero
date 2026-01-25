@@ -1,6 +1,7 @@
 import * as path from 'path';
+import * as fs from 'fs/promises';
 
-import { app, BrowserWindow, ipcMain, net } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, net } from 'electron';
 import Store from 'electron-store';
 import { autoUpdater } from 'electron-updater';
 
@@ -49,21 +50,23 @@ interface SteamGame {
   rtime_last_played?: number;
 }
 
-const store = new Store<StoreSchema>({
-  defaults: {
-    apiKey: '',
-    steamId: '',
-    games: [],
-    ratings: {},
-    notes: {},
-    completions: {},
-    achievements: {},
-    filterPreferences: {
-      completionFilter: 'all',
-      sortBy: 'playtime',
-      sortAsc: false,
-    },
+const defaultStoreData: StoreSchema = {
+  apiKey: '',
+  steamId: '',
+  games: [],
+  ratings: {},
+  notes: {},
+  completions: {},
+  achievements: {},
+  filterPreferences: {
+    completionFilter: 'all',
+    sortBy: 'playtime',
+    sortAsc: false,
   },
+};
+
+const store = new Store<StoreSchema>({
+  defaults: defaultStoreData,
 });
 
 let mainWindow: BrowserWindow | null = null;
@@ -411,5 +414,100 @@ ipcMain.handle('get-filter-preferences', () => {
 
 ipcMain.handle('save-filter-preferences', (_, preferences: FilterPreferences) => {
   store.set('filterPreferences', preferences);
+  return true;
+});
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function sanitizeFilterPreferences(value: unknown): FilterPreferences | null {
+  if (!isObject(value)) return null;
+  const completionFilter = value.completionFilter;
+  const sortBy = value.sortBy;
+  const sortAsc = value.sortAsc;
+
+  const completionFilterValues = ['all', 'completed', 'not_completed'] as const;
+  const sortByValues = ['playtime', 'name', 'rating', 'last_played'] as const;
+
+  if (
+    !completionFilterValues.includes(completionFilter as FilterPreferences['completionFilter']) ||
+    !sortByValues.includes(sortBy as FilterPreferences['sortBy']) ||
+    typeof sortAsc !== 'boolean'
+  ) {
+    return null;
+  }
+
+  return {
+    completionFilter: completionFilter as FilterPreferences['completionFilter'],
+    sortBy: sortBy as FilterPreferences['sortBy'],
+    sortAsc,
+  };
+}
+
+function getBackupData(): StoreSchema {
+  return {
+    apiKey: store.get('apiKey'),
+    steamId: store.get('steamId'),
+    games: store.get('games'),
+    ratings: store.get('ratings'),
+    notes: store.get('notes'),
+    completions: store.get('completions'),
+    achievements: store.get('achievements'),
+    filterPreferences: store.get('filterPreferences'),
+  };
+}
+
+ipcMain.handle('export-data', async () => {
+  const { canceled, filePath } = await dialog.showSaveDialog({
+    title: 'Export Backlog Hero Data',
+    defaultPath: path.join(app.getPath('documents'), 'backlog-hero-backup.json'),
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+  });
+
+  if (canceled || !filePath) {
+    return false;
+  }
+
+  const data = getBackupData();
+  await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
+  return true;
+});
+
+ipcMain.handle('import-data', async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    title: 'Import Backlog Hero Data',
+    properties: ['openFile'],
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+  });
+
+  if (canceled || filePaths.length === 0) {
+    return false;
+  }
+
+  const raw = await fs.readFile(filePaths[0], 'utf8');
+  const parsed: unknown = JSON.parse(raw);
+
+  if (!isObject(parsed)) {
+    throw new Error('Invalid backup file.');
+  }
+
+  const backup = parsed as Partial<StoreSchema>;
+  const filterPreferences =
+    sanitizeFilterPreferences(backup.filterPreferences) ?? defaultStoreData.filterPreferences;
+
+  store.set({
+    apiKey: typeof backup.apiKey === 'string' ? backup.apiKey : defaultStoreData.apiKey,
+    steamId: typeof backup.steamId === 'string' ? backup.steamId : defaultStoreData.steamId,
+    games: Array.isArray(backup.games) ? backup.games : defaultStoreData.games,
+    ratings: isObject(backup.ratings) ? backup.ratings : defaultStoreData.ratings,
+    notes: isObject(backup.notes) ? backup.notes : defaultStoreData.notes,
+    completions: isObject(backup.completions) ? backup.completions : defaultStoreData.completions,
+    achievements: isObject(backup.achievements)
+      ? backup.achievements
+      : defaultStoreData.achievements,
+    filterPreferences,
+  });
+
   return true;
 });
