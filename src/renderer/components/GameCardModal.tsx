@@ -1,32 +1,40 @@
 import { useState, useEffect } from 'react';
 
-import type { SteamGame, GameRating, GameCompletion, GameAchievements } from '../types/electron';
+import type {
+  SteamGame,
+  GameRating,
+  GameStatus,
+  GameStatusType,
+  GameAchievements,
+} from '../types/electron';
 
 interface GameCardModalProps {
   game: SteamGame;
   rating?: GameRating;
   note: string;
-  completion?: GameCompletion;
+  status?: GameStatus;
   achievements?: GameAchievements;
   onClose: () => void;
   onSaveNote: (note: string) => void;
-  onSaveCompletion: (completion: GameCompletion | null) => void;
+  onSaveStatus: (status: GameStatus | null) => void;
 }
 
 function GameCardModal({
   game,
   rating,
   note: initialNote,
-  completion: initialCompletion,
+  status: initialStatus,
   achievements,
   onClose,
   onSaveNote,
-  onSaveCompletion,
+  onSaveStatus,
 }: GameCardModalProps) {
   const [note, setNote] = useState(initialNote);
   const [saving, setSaving] = useState(false);
-  const [isCompleted, setIsCompleted] = useState(initialCompletion?.completed ?? false);
-  const [completedDate, setCompletedDate] = useState(initialCompletion?.completedDate ?? '');
+  const [selectedStatus, setSelectedStatus] = useState<GameStatusType | null>(
+    initialStatus?.status ?? null,
+  );
+  const [completedDate, setCompletedDate] = useState(initialStatus?.completedDate ?? '');
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -46,31 +54,45 @@ function GameCardModal({
     setSaving(false);
   };
 
-  const handleCompletionToggle = async () => {
-    const newCompleted = !isCompleted;
-    setIsCompleted(newCompleted);
+  const handleStatusChange = async (newStatus: GameStatusType | null) => {
+    setSelectedStatus(newStatus);
 
-    if (newCompleted) {
-      const completion: GameCompletion = {
-        completed: true,
-        completedDate: completedDate || undefined,
-      };
-      await onSaveCompletion(completion);
-    } else {
+    if (newStatus === null) {
       setCompletedDate('');
-      await onSaveCompletion(null);
+      await onSaveStatus(null);
+    } else {
+      const statusObj: GameStatus = {
+        status: newStatus,
+        statusDate: new Date().toISOString(),
+      };
+
+      if (newStatus === 'completed' && completedDate) {
+        statusObj.completedDate = completedDate;
+      }
+
+      await onSaveStatus(statusObj);
     }
   };
 
   const handleDateChange = async (date: string) => {
     setCompletedDate(date);
-    if (isCompleted) {
-      const completion: GameCompletion = {
-        completed: true,
+    if (selectedStatus === 'completed') {
+      await onSaveStatus({
+        status: 'completed',
+        statusDate: new Date().toISOString(),
         completedDate: date || undefined,
-      };
-      await onSaveCompletion(completion);
+      });
     }
+  };
+
+  const getStatusLabel = (status: GameStatusType): string => {
+    const labels: Record<GameStatusType, string> = {
+      completed: 'Completed',
+      in_progress: 'In Progress',
+      dropped: 'Dropped',
+      backlog: 'Backlog',
+    };
+    return labels[status];
   };
 
   const formatPlaytime = (minutes: number): string => {
@@ -121,12 +143,28 @@ function GameCardModal({
         <div className="modal-body">
           <h2 className="modal-title">{game.name}</h2>
 
-          <div className="completion-section">
-            <label className="completion-checkbox">
-              <input type="checkbox" checked={isCompleted} onChange={handleCompletionToggle} />
-              <span className="checkbox-label">Mark as completed</span>
-            </label>
-            {isCompleted && (
+          <div className="status-section">
+            <label className="section-label">Game Status</label>
+            <div className="status-pills">
+              {(['backlog', 'in_progress', 'completed', 'dropped'] as const).map((status) => (
+                <button
+                  key={status}
+                  className={`status-pill ${selectedStatus === status ? 'active' : ''} status-${status}`}
+                  onClick={() => handleStatusChange(status)}
+                  type="button"
+                >
+                  {getStatusLabel(status)}
+                </button>
+              ))}
+              <button
+                className={`status-pill ${selectedStatus === null ? 'active' : ''} status-none`}
+                onClick={() => handleStatusChange(null)}
+                type="button"
+              >
+                Clear
+              </button>
+            </div>
+            {selectedStatus === 'completed' && (
               <div className="completion-date">
                 <label htmlFor="completed-date">Completion date (optional)</label>
                 <input

@@ -2,16 +2,21 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import GameCardModal from '../components/GameCardModal';
-import type { GameAchievements, GameCompletion, GameRating, SteamGame } from '../types/electron';
+import type {
+  GameAchievements,
+  GameRating,
+  GameStatus,
+  StatusFilter,
+  SteamGame,
+} from '../types/electron';
 
-type SortOption = 'playtime' | 'name' | 'rating' | 'last_played';
-type CompletionFilter = 'all' | 'completed' | 'not_completed';
+type SortOption = 'playtime' | 'name' | 'rating' | 'last_played' | 'status_date';
 
 function HomePage() {
   const [games, setGames] = useState<SteamGame[]>([]);
   const [ratings, setRatings] = useState<Record<number, GameRating>>({});
   const [notes, setNotes] = useState<Record<number, string>>({});
-  const [completions, setCompletions] = useState<Record<number, GameCompletion>>({});
+  const [statuses, setStatuses] = useState<Record<number, GameStatus>>({});
   const [achievements, setAchievements] = useState<Record<number, GameAchievements>>({});
   const [loading, setLoading] = useState(false);
   const [loadingRatings, setLoadingRatings] = useState(false);
@@ -21,7 +26,7 @@ function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('playtime');
   const [sortAsc, setSortAsc] = useState(false);
-  const [completionFilter, setCompletionFilter] = useState<CompletionFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedGame, setSelectedGame] = useState<SteamGame | null>(null);
 
   useEffect(() => {
@@ -37,14 +42,14 @@ function HomePage() {
         cachedGames,
         cachedRatings,
         cachedNotes,
-        cachedCompletions,
+        cachedStatuses,
         cachedAchievements,
         filterPrefs,
       ] = await Promise.all([
         window.electronAPI.getGames(),
         window.electronAPI.getRatings(),
         window.electronAPI.getNotes(),
-        window.electronAPI.getCompletions(),
+        window.electronAPI.getStatuses(),
         window.electronAPI.getAchievements(),
         window.electronAPI.getFilterPreferences(),
       ]);
@@ -58,14 +63,14 @@ function HomePage() {
       if (cachedNotes) {
         setNotes(cachedNotes);
       }
-      if (cachedCompletions) {
-        setCompletions(cachedCompletions);
+      if (cachedStatuses) {
+        setStatuses(cachedStatuses);
       }
       if (cachedAchievements) {
         setAchievements(cachedAchievements);
       }
       if (filterPrefs) {
-        setCompletionFilter(filterPrefs.completionFilter);
+        setStatusFilter(filterPrefs.statusFilter);
         setSortBy(filterPrefs.sortBy);
         setSortAsc(filterPrefs.sortAsc);
       }
@@ -124,15 +129,15 @@ function HomePage() {
     setNotes((prev) => ({ ...prev, [selectedGame.appid]: note }));
   };
 
-  const handleSaveCompletion = async (completion: GameCompletion | null) => {
+  const handleSaveStatus = async (status: GameStatus | null) => {
     if (!selectedGame) return;
-    await window.electronAPI.saveCompletion(selectedGame.appid, completion);
-    setCompletions((prev) => {
+    await window.electronAPI.saveStatus(selectedGame.appid, status);
+    setStatuses((prev) => {
       const updated = { ...prev };
-      if (completion === null) {
+      if (status === null) {
         delete updated[selectedGame.appid];
       } else {
-        updated[selectedGame.appid] = completion;
+        updated[selectedGame.appid] = status;
       }
       return updated;
     });
@@ -157,9 +162,15 @@ function HomePage() {
     return '#a34c4c';
   };
 
-  const completedCount = useMemo(() => {
-    return Object.values(completions).filter((c) => c.completed).length;
-  }, [completions]);
+  const statusCounts = useMemo(() => {
+    const counts = { completed: 0, in_progress: 0, dropped: 0, backlog: 0 };
+    Object.values(statuses).forEach((s) => {
+      if (s.status in counts) {
+        counts[s.status]++;
+      }
+    });
+    return counts;
+  }, [statuses]);
 
   const filteredAndSortedGames = useMemo(() => {
     let result = [...games];
@@ -170,11 +181,13 @@ function HomePage() {
       result = result.filter((game) => game.name.toLowerCase().includes(query));
     }
 
-    // Filter by completion status
-    if (completionFilter === 'completed') {
-      result = result.filter((game) => completions[game.appid]?.completed);
-    } else if (completionFilter === 'not_completed') {
-      result = result.filter((game) => !completions[game.appid]?.completed);
+    // Filter by status
+    if (statusFilter !== 'all') {
+      if (statusFilter === 'untracked') {
+        result = result.filter((game) => !statuses[game.appid]);
+      } else {
+        result = result.filter((game) => statuses[game.appid]?.status === statusFilter);
+      }
     }
 
     // Sort
@@ -202,29 +215,39 @@ function HomePage() {
           comparison = lastB - lastA;
           break;
         }
+        case 'status_date': {
+          const dateA = statuses[a.appid]?.statusDate
+            ? new Date(statuses[a.appid].statusDate!).getTime()
+            : 0;
+          const dateB = statuses[b.appid]?.statusDate
+            ? new Date(statuses[b.appid].statusDate!).getTime()
+            : 0;
+          comparison = dateB - dateA;
+          break;
+        }
       }
 
       return sortAsc ? -comparison : comparison;
     });
 
     return result;
-  }, [games, ratings, completions, searchQuery, sortBy, sortAsc, completionFilter]);
+  }, [games, ratings, statuses, searchQuery, sortBy, sortAsc, statusFilter]);
 
   const handleSortChange = (newSort: SortOption) => {
     const newSortAsc = sortBy === newSort ? !sortAsc : false;
     setSortBy(newSort);
     setSortAsc(newSortAsc);
     window.electronAPI.saveFilterPreferences({
-      completionFilter,
+      statusFilter,
       sortBy: newSort,
       sortAsc: newSortAsc,
     });
   };
 
-  const handleCompletionFilterChange = (newFilter: CompletionFilter) => {
-    setCompletionFilter(newFilter);
+  const handleStatusFilterChange = (newFilter: StatusFilter) => {
+    setStatusFilter(newFilter);
     window.electronAPI.saveFilterPreferences({
-      completionFilter: newFilter,
+      statusFilter: newFilter,
       sortBy,
       sortAsc,
     });
@@ -251,7 +274,7 @@ function HomePage() {
         <div className="header-actions">
           <span className="game-count">
             {filteredAndSortedGames.length} / {games.length} games
-            <span className="completed-count"> ({completedCount} completed)</span>
+            <span className="completed-count"> ({statusCounts.completed} completed)</span>
           </span>
           <button onClick={handleRefresh} className="btn-primary" disabled={loading}>
             {loading ? 'Refreshing...' : 'Refresh Library'}
@@ -284,13 +307,16 @@ function HomePage() {
         </div>
         <div className="filter-options">
           <select
-            value={completionFilter}
-            onChange={(e) => handleCompletionFilterChange(e.target.value as CompletionFilter)}
+            value={statusFilter}
+            onChange={(e) => handleStatusFilterChange(e.target.value as StatusFilter)}
             className="filter-select"
           >
             <option value="all">All Games</option>
             <option value="completed">Completed</option>
-            <option value="not_completed">Not Completed</option>
+            <option value="in_progress">In Progress</option>
+            <option value="backlog">Backlog</option>
+            <option value="dropped">Dropped</option>
+            <option value="untracked">Untracked</option>
           </select>
         </div>
         <div className="sort-options">
@@ -337,15 +363,21 @@ function HomePage() {
           {filteredAndSortedGames.map((game) => {
             const rating = ratings[game.appid];
             const hasNote = !!notes[game.appid];
-            const isCompleted = completions[game.appid]?.completed;
+            const gameStatus = statuses[game.appid]?.status;
             const gameAchievements = achievements[game.appid];
             return (
               <div
                 key={game.appid}
-                className={`game-card ${isCompleted ? 'completed' : ''}`}
+                className={`game-card ${gameStatus ? `status-${gameStatus}` : ''}`}
                 onClick={() => setSelectedGame(game)}
               >
-                {isCompleted && <div className="completed-badge">Completed</div>}
+                {gameStatus && (
+                  <div className={`status-badge status-${gameStatus}`}>
+                    {gameStatus === 'in_progress'
+                      ? 'In Progress'
+                      : gameStatus.charAt(0).toUpperCase() + gameStatus.slice(1)}
+                  </div>
+                )}
                 <div className="game-image">
                   {game.img_icon_url ? (
                     <img src={getGameImageUrl(game.appid, game.img_icon_url)} alt={game.name} />
@@ -393,11 +425,11 @@ function HomePage() {
           game={selectedGame}
           rating={ratings[selectedGame.appid]}
           note={notes[selectedGame.appid] || ''}
-          completion={completions[selectedGame.appid]}
+          status={statuses[selectedGame.appid]}
           achievements={achievements[selectedGame.appid]}
           onClose={() => setSelectedGame(null)}
           onSaveNote={handleSaveNote}
-          onSaveCompletion={handleSaveCompletion}
+          onSaveStatus={handleSaveStatus}
         />
       )}
     </div>

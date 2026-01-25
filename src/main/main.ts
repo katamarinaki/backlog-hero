@@ -18,14 +18,24 @@ interface GameCompletion {
   completedDate?: string; // ISO date string, optional
 }
 
+type GameStatusType = 'completed' | 'in_progress' | 'dropped' | 'backlog';
+
+interface GameStatus {
+  status: GameStatusType;
+  statusDate?: string;
+  completedDate?: string;
+}
+
+type StatusFilter = 'all' | 'completed' | 'in_progress' | 'dropped' | 'backlog' | 'untracked';
+
 interface GameAchievements {
   achieved: number;
   total: number;
 }
 
 interface FilterPreferences {
-  completionFilter: 'all' | 'completed' | 'not_completed';
-  sortBy: 'playtime' | 'name' | 'rating' | 'last_played';
+  statusFilter: StatusFilter;
+  sortBy: 'playtime' | 'name' | 'rating' | 'last_played' | 'status_date';
   sortAsc: boolean;
 }
 
@@ -36,6 +46,7 @@ interface StoreSchema {
   ratings: Record<number, GameRating>;
   notes: Record<number, string>;
   completions: Record<number, GameCompletion>;
+  statuses: Record<number, GameStatus>;
   achievements: Record<number, GameAchievements>;
   filterPreferences: FilterPreferences;
 }
@@ -57,9 +68,10 @@ const defaultStoreData: StoreSchema = {
   ratings: {},
   notes: {},
   completions: {},
+  statuses: {},
   achievements: {},
   filterPreferences: {
-    completionFilter: 'all',
+    statusFilter: 'all',
     sortBy: 'playtime',
     sortAsc: false,
   },
@@ -68,6 +80,35 @@ const defaultStoreData: StoreSchema = {
 const store = new Store<StoreSchema>({
   defaults: defaultStoreData,
 });
+
+// Migrate old completions to new statuses format
+function migrateCompletionsToStatuses() {
+  const statuses = store.get('statuses') || {};
+  const completions = store.get('completions') || {};
+
+  // Only migrate if statuses is empty but completions has data
+  if (Object.keys(statuses).length === 0 && Object.keys(completions).length > 0) {
+    const migratedStatuses: Record<number, GameStatus> = {};
+
+    for (const [appidStr, completion] of Object.entries(completions)) {
+      if (completion.completed) {
+        const appid = parseInt(appidStr, 10);
+        migratedStatuses[appid] = {
+          status: 'completed',
+          statusDate: completion.completedDate || new Date().toISOString(),
+          completedDate: completion.completedDate,
+        };
+      }
+    }
+
+    if (Object.keys(migratedStatuses).length > 0) {
+      store.set('statuses', migratedStatuses);
+    }
+  }
+}
+
+// Run migration
+migrateCompletionsToStatuses();
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -324,6 +365,25 @@ ipcMain.handle(
   },
 );
 
+// IPC Handlers for game statuses
+ipcMain.handle('get-statuses', () => {
+  return store.get('statuses') || {};
+});
+
+ipcMain.handle(
+  'save-status',
+  (_, { appid, status }: { appid: number; status: GameStatus | null }) => {
+    const statuses = store.get('statuses') || {};
+    if (status === null) {
+      delete statuses[appid];
+    } else {
+      statuses[appid] = status;
+    }
+    store.set('statuses', statuses);
+    return true;
+  },
+);
+
 // Fetch achievements for a single game
 async function fetchGameAchievements(
   appid: number,
@@ -423,15 +483,22 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 function sanitizeFilterPreferences(value: unknown): FilterPreferences | null {
   if (!isObject(value)) return null;
-  const completionFilter = value.completionFilter;
+  const statusFilter = value.statusFilter;
   const sortBy = value.sortBy;
   const sortAsc = value.sortAsc;
 
-  const completionFilterValues = ['all', 'completed', 'not_completed'] as const;
-  const sortByValues = ['playtime', 'name', 'rating', 'last_played'] as const;
+  const statusFilterValues = [
+    'all',
+    'completed',
+    'in_progress',
+    'dropped',
+    'backlog',
+    'untracked',
+  ] as const;
+  const sortByValues = ['playtime', 'name', 'rating', 'last_played', 'status_date'] as const;
 
   if (
-    !completionFilterValues.includes(completionFilter as FilterPreferences['completionFilter']) ||
+    !statusFilterValues.includes(statusFilter as FilterPreferences['statusFilter']) ||
     !sortByValues.includes(sortBy as FilterPreferences['sortBy']) ||
     typeof sortAsc !== 'boolean'
   ) {
@@ -439,7 +506,7 @@ function sanitizeFilterPreferences(value: unknown): FilterPreferences | null {
   }
 
   return {
-    completionFilter: completionFilter as FilterPreferences['completionFilter'],
+    statusFilter: statusFilter as FilterPreferences['statusFilter'],
     sortBy: sortBy as FilterPreferences['sortBy'],
     sortAsc,
   };
@@ -453,6 +520,7 @@ function getBackupData(): StoreSchema {
     ratings: store.get('ratings'),
     notes: store.get('notes'),
     completions: store.get('completions'),
+    statuses: store.get('statuses'),
     achievements: store.get('achievements'),
     filterPreferences: store.get('filterPreferences'),
   };
@@ -503,6 +571,7 @@ ipcMain.handle('import-data', async () => {
     ratings: isObject(backup.ratings) ? backup.ratings : defaultStoreData.ratings,
     notes: isObject(backup.notes) ? backup.notes : defaultStoreData.notes,
     completions: isObject(backup.completions) ? backup.completions : defaultStoreData.completions,
+    statuses: isObject(backup.statuses) ? backup.statuses : defaultStoreData.statuses,
     achievements: isObject(backup.achievements)
       ? backup.achievements
       : defaultStoreData.achievements,

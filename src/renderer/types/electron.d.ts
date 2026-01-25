@@ -27,14 +27,24 @@ export interface GameCompletion {
   completedDate?: string; // ISO date string
 }
 
+export type GameStatusType = 'completed' | 'in_progress' | 'dropped' | 'backlog';
+
+export interface GameStatus {
+  status: GameStatusType;
+  statusDate?: string; // When status was last changed
+  completedDate?: string; // Specific to 'completed' status
+}
+
+export type StatusFilter = 'all' | 'completed' | 'in_progress' | 'dropped' | 'backlog' | 'untracked';
+
 export interface GameAchievements {
   achieved: number;
   total: number;
 }
 
 export interface FilterPreferences {
-  completionFilter: 'all' | 'completed' | 'not_completed';
-  sortBy: 'playtime' | 'name' | 'rating' | 'last_played';
+  statusFilter: StatusFilter;
+  sortBy: 'playtime' | 'name' | 'rating' | 'last_played' | 'status_date';
   sortAsc: boolean;
 }
 
@@ -49,6 +59,8 @@ export interface ElectronAPI {
   saveNote: (appid: number, note: string) => Promise<boolean>;
   getCompletions: () => Promise<Record<number, GameCompletion>>;
   saveCompletion: (appid: number, completion: GameCompletion | null) => Promise<boolean>;
+  getStatuses: () => Promise<Record<number, GameStatus>>;
+  saveStatus: (appid: number, status: GameStatus | null) => Promise<boolean>;
   getAchievements: () => Promise<Record<number, GameAchievements>>;
   fetchAchievements: (appids: number[]) => Promise<Record<number, GameAchievements>>;
   getFilterPreferences: () => Promise<FilterPreferences>;

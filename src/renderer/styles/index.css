@@ -699,3 +699,133 @@ body {
 .achievement-percent {
   color: var(--text-secondary);
 }
+
+/* Status Colors */
+:root {
+  --status-completed: #5ba32b;
+  --status-in-progress: #66c0f4;
+  --status-dropped: #a34c4c;
+  --status-backlog: #b9a074;
+}
+
+/* Status Section in Modal */
+.status-section {
+  background-color: var(--bg-card);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.section-label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--text-primary);
+}
+
+.status-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.status-pill {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.status-pill:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.status-pill.active.status-completed {
+  background-color: var(--status-completed);
+  border-color: var(--status-completed);
+  color: white;
+}
+
+.status-pill.active.status-in_progress {
+  background-color: var(--status-in-progress);
+  border-color: var(--status-in-progress);
+  color: var(--bg-primary);
+}
+
+.status-pill.active.status-dropped {
+  background-color: var(--status-dropped);
+  border-color: var(--status-dropped);
+  color: white;
+}
+
+.status-pill.active.status-backlog {
+  background-color: var(--status-backlog);
+  border-color: var(--status-backlog);
+  color: var(--bg-primary);
+}
+
+.status-pill.active.status-none {
+  background-color: var(--bg-primary);
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+/* Status Badges on Game Cards */
+.status-badge {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.status-badge.status-completed {
+  background-color: var(--status-completed);
+  color: white;
+}
+
+.status-badge.status-in_progress {
+  background-color: var(--status-in-progress);
+  color: var(--bg-primary);
+}
+
+.status-badge.status-dropped {
+  background-color: var(--status-dropped);
+  color: white;
+}
+
+.status-badge.status-backlog {
+  background-color: var(--status-backlog);
+  color: var(--bg-primary);
+}
+
+/* Game Card Border Colors by Status */
+.game-card.status-completed {
+  border: 1px solid var(--status-completed);
+  position: relative;
+}
+
+.game-card.status-in_progress {
+  border: 1px solid var(--status-in-progress);
+  position: relative;
+}
+
+.game-card.status-dropped {
+  border: 1px solid var(--status-dropped);
+  position: relative;
+}
+
+.game-card.status-backlog {
+  border: 1px solid var(--status-backlog);
+  position: relative;
+}

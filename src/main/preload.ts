@@ -28,14 +28,24 @@ export interface GameCompletion {
   completedDate?: string;
 }
 
+export type GameStatusType = 'completed' | 'in_progress' | 'dropped' | 'backlog';
+
+export interface GameStatus {
+  status: GameStatusType;
+  statusDate?: string;
+  completedDate?: string;
+}
+
+export type StatusFilter = 'all' | 'completed' | 'in_progress' | 'dropped' | 'backlog' | 'untracked';
+
 export interface GameAchievements {
   achieved: number;
   total: number;
 }
 
 export interface FilterPreferences {
-  completionFilter: 'all' | 'completed' | 'not_completed';
-  sortBy: 'playtime' | 'name' | 'rating' | 'last_played';
+  statusFilter: StatusFilter;
+  sortBy: 'playtime' | 'name' | 'rating' | 'last_played' | 'status_date';
   sortAsc: boolean;
 }
 
@@ -55,6 +65,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('get-completions'),
   saveCompletion: (appid: number, completion: GameCompletion | null): Promise<boolean> =>
     ipcRenderer.invoke('save-completion', { appid, completion }),
+  getStatuses: (): Promise<Record<number, GameStatus>> => ipcRenderer.invoke('get-statuses'),
+  saveStatus: (appid: number, status: GameStatus | null): Promise<boolean> =>
+    ipcRenderer.invoke('save-status', { appid, status }),
   getAchievements: (): Promise<Record<number, GameAchievements>> =>
     ipcRenderer.invoke('get-achievements'),
   fetchAchievements: (appids: number[]): Promise<Record<number, GameAchievements>> =>
