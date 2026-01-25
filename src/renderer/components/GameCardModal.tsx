@@ -211,11 +211,7 @@ function GameCardModal({
             </div>
             <div className="endless-toggle">
               <label className="endless-checkbox">
-                <input
-                  type="checkbox"
-                  checked={isEndless}
-                  onChange={handleEndlessToggle}
-                />
+                <input type="checkbox" checked={isEndless} onChange={handleEndlessToggle} />
                 <span className="checkbox-label">Endless game (no campaign/story to complete)</span>
               </label>
             </div>
