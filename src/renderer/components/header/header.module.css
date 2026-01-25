@@ -1,9 +1,3 @@
-.app {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
 .navbar {
   display: flex;
   justify-content: space-between;
@@ -34,12 +28,4 @@
 
 .navLink:hover {
   background-color: var(--bg-primary);
-}
-
-.mainContent {
-  flex: 1;
-  padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
-  width: 100%;
 }
