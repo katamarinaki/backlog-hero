@@ -1,37 +1,36 @@
 import { useState, useEffect } from 'react';
 
-import type { SteamGame, GameRating, GameStatus, GameStatusType, GameAchievements } from 'types';
+import type { SteamGame, GameStatus, GameStatusType } from 'types';
+import { useGameContext } from 'context/game-context';
 
 import styles from './game-card-modal.module.css';
 
 type Props = {
   game: SteamGame;
-  rating?: GameRating;
-  note: string;
-  status?: GameStatus;
-  achievements?: GameAchievements;
   onClose: () => void;
-  onSaveNote: (note: string) => void;
-  onSaveStatus: (status: GameStatus | null) => void;
 };
 
-export const GameCardModal = ({
-  game,
-  rating,
-  note: initialNote,
-  status: initialStatus,
-  achievements,
-  onClose,
-  onSaveNote,
-  onSaveStatus,
-}: Props) => {
-  const [note, setNote] = useState(initialNote);
+export const GameCardModal = ({ game, onClose }: Props) => {
+  const {
+    notes,
+    statuses,
+    achievements: allAchievements,
+    ratings,
+    saveNote,
+    saveStatus,
+  } = useGameContext();
+
+  const gameStatus = statuses[game.appid];
+  const achievements = allAchievements?.[game.appid];
+  const rating = ratings[game.appid];
+
+  const [note, setNote] = useState(notes[game.appid] ?? '');
   const [saving, setSaving] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<GameStatusType | null>(
-    initialStatus?.status ?? null,
+    gameStatus?.status ?? null,
   );
-  const [completedDate, setCompletedDate] = useState(initialStatus?.completedDate ?? '');
-  const [isEndless, setIsEndless] = useState(initialStatus?.isEndless ?? false);
+  const [completedDate, setCompletedDate] = useState(gameStatus?.completedDate ?? '');
+  const [isEndless, setIsEndless] = useState(gameStatus?.isEndless ?? false);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -47,7 +46,7 @@ export const GameCardModal = ({
 
   const handleSaveNote = async () => {
     setSaving(true);
-    await onSaveNote(note);
+    await saveNote(note);
     setSaving(false);
   };
 
@@ -58,11 +57,11 @@ export const GameCardModal = ({
       setCompletedDate('');
       if (isEndless) {
         // Keep endless flag but clear status
-        await onSaveStatus({
+        await saveStatus({
           isEndless: true,
         });
       } else {
-        await onSaveStatus(null);
+        await saveStatus(null);
       }
     } else {
       const statusObj: GameStatus = {
@@ -75,7 +74,7 @@ export const GameCardModal = ({
         statusObj.completedDate = completedDate;
       }
 
-      await onSaveStatus(statusObj);
+      await saveStatus(statusObj);
     }
   };
 
@@ -87,22 +86,22 @@ export const GameCardModal = ({
     if (newIsEndless && selectedStatus === 'completed') {
       setSelectedStatus(null);
       setCompletedDate('');
-      await onSaveStatus({
+      await saveStatus({
         isEndless: true,
       });
     } else if (newIsEndless) {
       // Just mark as endless, keep current status (or no status)
-      await onSaveStatus({
+      await saveStatus({
         status: selectedStatus || undefined,
         statusDate: selectedStatus ? new Date().toISOString() : undefined,
         isEndless: true,
       });
     } else if (!newIsEndless && !selectedStatus) {
       // Unmarking endless with no status - clear everything
-      await onSaveStatus(null);
+      await saveStatus(null);
     } else {
       // Unmarking endless but has a status - keep the status
-      await onSaveStatus({
+      await saveStatus({
         status: selectedStatus!,
         statusDate: new Date().toISOString(),
         completedDate: selectedStatus === 'completed' ? completedDate || undefined : undefined,
@@ -113,7 +112,7 @@ export const GameCardModal = ({
   const handleDateChange = async (date: string) => {
     setCompletedDate(date);
     if (selectedStatus === 'completed') {
-      await onSaveStatus({
+      await saveStatus({
         status: 'completed',
         statusDate: new Date().toISOString(),
         completedDate: date || undefined,
@@ -309,11 +308,7 @@ export const GameCardModal = ({
               placeholder="Write your impressions, thoughts, or notes about this game..."
               rows={5}
             />
-            <button
-              className={styles.btnPrimary}
-              onClick={handleSaveNote}
-              disabled={saving || note === initialNote}
-            >
+            <button className={styles.btnPrimary} onClick={handleSaveNote} disabled={saving}>
               {saving ? 'Saving...' : 'Save Note'}
             </button>
           </div>

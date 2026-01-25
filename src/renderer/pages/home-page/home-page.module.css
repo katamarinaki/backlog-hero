@@ -19,10 +19,6 @@
   color: var(--text-secondary);
 }
 
-.completedCount {
-  color: var(--success);
-}
-
 /* Buttons */
 .btnPrimary {
   background-color: var(--accent);

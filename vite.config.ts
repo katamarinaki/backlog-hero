@@ -13,6 +13,7 @@ export default {
       '@': path.resolve(__dirname, './src/renderer'),
       components: path.resolve(__dirname, './src/renderer/components'),
       pages: path.resolve(__dirname, './src/renderer/pages'),
+      context: path.resolve(__dirname, './src/renderer/context'),
     },
   },
 };

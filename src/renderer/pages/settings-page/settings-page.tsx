@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react';
 
+import { useGameContext } from 'context/game-context';
+
 import styles from './settings-page.module.css';
 
 export const SettingsPage = () => {
+  const { games, refreshLibrary, fetchRatings, fetchAchievements, syncLoading } = useGameContext();
+
   const [apiKey, setApiKey] = useState('');
   const [steamId, setSteamId] = useState('');
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -20,6 +24,36 @@ export const SettingsPage = () => {
       setSteamId(settings.steamId || '');
     } catch (error) {
       console.error('Failed to load settings:', error);
+    }
+  };
+
+  const handleRefreshLibrary = async () => {
+    setStatus(null);
+    try {
+      await refreshLibrary();
+      setStatus({ type: 'success', message: `Library refreshed! ${games.length} games loaded.` });
+    } catch {
+      setStatus({ type: 'error', message: 'Failed to refresh library.' });
+    }
+  };
+
+  const handleFetchRatings = async () => {
+    setStatus(null);
+    try {
+      await fetchRatings();
+      setStatus({ type: 'success', message: 'Ratings fetched successfully!' });
+    } catch {
+      setStatus({ type: 'error', message: 'Failed to fetch ratings.' });
+    }
+  };
+
+  const handleFetchAchievements = async () => {
+    setStatus(null);
+    try {
+      await fetchAchievements();
+      setStatus({ type: 'success', message: 'Achievements fetched successfully!' });
+    } catch {
+      setStatus({ type: 'error', message: 'Failed to fetch achievements.' });
     }
   };
 
@@ -134,6 +168,37 @@ export const SettingsPage = () => {
           {loading ? 'Saving...' : 'Save Settings'}
         </button>
       </form>
+
+      <div className={styles.settingsSection}>
+        <h2>Library Sync</h2>
+        <p className={styles.settingsDescription}>
+          Sync your Steam library data.{' '}
+          {games.length > 0 && `Currently ${games.length} games in library.`}
+        </p>
+        <div className={styles.settingsActions}>
+          <button
+            className={styles.btnPrimary}
+            onClick={handleRefreshLibrary}
+            disabled={syncLoading !== null}
+          >
+            {syncLoading === 'library' ? 'Refreshing...' : 'Refresh Library'}
+          </button>
+          <button
+            className={styles.btnSecondary}
+            onClick={handleFetchRatings}
+            disabled={syncLoading !== null || games.length === 0}
+          >
+            {syncLoading === 'ratings' ? 'Loading...' : 'Fetch Ratings'}
+          </button>
+          <button
+            className={styles.btnSecondary}
+            onClick={handleFetchAchievements}
+            disabled={syncLoading !== null || games.length === 0}
+          >
+            {syncLoading === 'achievements' ? 'Loading...' : 'Fetch Achievements'}
+          </button>
+        </div>
+      </div>
 
       <div className={styles.settingsSection}>
         <h2>Data</h2>
