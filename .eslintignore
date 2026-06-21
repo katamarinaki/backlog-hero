@@ -4,3 +4,4 @@ release/
 out/
 coverage/
 package-lock.json
+scripts/
