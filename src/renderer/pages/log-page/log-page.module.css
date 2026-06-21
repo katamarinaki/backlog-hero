@@ -109,6 +109,8 @@
   font-size: 0.9rem;
   font-weight: 600;
   line-height: 1.2;
+  /* Reserve exactly two lines so playtime lines up across all cards. */
+  height: calc(0.9rem * 1.2 * 2);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
