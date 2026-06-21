@@ -88,6 +88,9 @@ jobs:
       - name: Clear old beta assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # This job has no checkout, so gh can't infer the repo from git —
+          # set it explicitly or `gh release view` fails and the clean is skipped.
+          GH_REPO: ${{ github.repository }}
         run: |
           if gh release view beta >/dev/null 2>&1; then
             gh release view beta --json assets -q '.assets[].name' | while read -r asset; do
