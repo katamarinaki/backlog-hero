@@ -70,13 +70,7 @@ jobs:
           path: beta-artifacts
           merge-multiple: true
 
-      - name: Delete Old Beta Release
-        run: |
-          gh release delete beta --yes --cleanup-tag 2>/dev/null || true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create Beta Release
+      - name: Update Beta Release
         uses: ncipollo/release-action@v1
         with:
           allowUpdates: true
