@@ -1,5 +1,6 @@
-import { exec } from 'child_process';
-import { readdirSync } from 'fs';
+import { spawn } from 'child_process';
+import { mkdtempSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
 import * as path from 'path';
 
 import { autoUpdater } from 'electron-updater';
@@ -9,6 +10,11 @@ import { store } from './store';
 
 const GITHUB_OWNER = 'katamarinaki';
 const GITHUB_REPO = 'backlog-hero';
+
+// Path to the zip that electron-updater downloaded to its cache (set on
+// `update-downloaded`). On macOS we install this ourselves — see installUpdate().
+let downloadedZipPath: string | null = null;
+let downloadedVersion: string | null = null;
 
 function getFeedURL(useBeta: boolean) {
   if (useBeta) {
@@ -42,11 +48,25 @@ export function initAutoUpdater(): void {
     return;
   }
 
-  // Force stable-only updates on startup (toggling beta overrides)
-  autoUpdater.allowPrerelease = false;
-  autoUpdater.allowDowngrade = false;
+  // The app is NOT signed with an Apple Developer certificate. macOS auto-update
+  // normally goes through Squirrel.Mac, which mandatorily validates the new
+  // bundle's code signature and refuses to install an unsigned/ad-hoc app
+  // ("code object is not signed at all"). We therefore disable the Squirrel
+  // hand-off entirely and install the downloaded build ourselves (installUpdate).
+  //
+  // Setting autoInstallOnAppQuit = false means electron-updater's MacUpdater
+  // never calls the native Squirrel updater, so signature validation never runs
+  // and `update-downloaded` still fires with a usable zip path.
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = false;
+  // GitHub release assets don't support HTTP range requests, so differential
+  // downloads always 501 and fall back to a full download anyway. Skip them.
+  autoUpdater.disableDifferentialDownload = true;
 
   const useBeta = store.get('useBetaUpdates', false);
+  autoUpdater.allowPrerelease = useBeta;
+  autoUpdater.allowDowngrade = useBeta;
+
   const feed = getFeedURL(useBeta);
   log(
     `Setting feed URL: provider=${feed.provider}, owner=${GITHUB_OWNER}, repo=${GITHUB_REPO}, beta=${useBeta}`,
@@ -54,9 +74,10 @@ export function initAutoUpdater(): void {
 
   autoUpdater.setFeedURL(feed);
 
-  // Register broadcast listeners once — these persist across toggleBetaFeed calls
+  // Register listeners once — these persist across toggleBetaFeed calls.
   autoUpdater.on('checking-for-update', () => {
     log('Checking for update...');
+    broadcast('updater-status', { type: 'checking' });
   });
   autoUpdater.on('update-available', (info) => {
     log(`Update available: v${info.version}`);
@@ -69,102 +90,121 @@ export function initAutoUpdater(): void {
   autoUpdater.on('download-progress', (progress) => {
     broadcast('updater-status', { type: 'downloading', percent: Math.round(progress.percent) });
   });
-  let downloadedFile: string | null = null;
-
   autoUpdater.on('update-downloaded', (info) => {
-    downloadedFile = info.downloadedFile;
-    log(`Update downloaded: v${info.version} — will install on quit`);
+    downloadedZipPath = info.downloadedFile;
+    downloadedVersion = info.version;
+    log(`Update downloaded: v${info.version} — ready to install (${info.downloadedFile})`);
     broadcast('updater-status', { type: 'downloaded', version: info.version });
   });
   autoUpdater.on('error', (error) => {
     log(`Error: ${error.message}`);
     broadcast('updater-status', { type: 'error', message: error.message });
-
-    // macOS unsigned apps: Squirrel.Mac signature validation fails.
-    // Try event path first, then fall back to cache.
-    if (process.platform === 'darwin' && error.message?.includes('did not pass validation')) {
-      let zipPath: string | null = downloadedFile;
-
-      if (!zipPath) {
-        const pendingDir = path.join(
-          path.dirname(app.getPath('userData')),
-          'backlog-hero-updater',
-          'pending',
-        );
-        try {
-          const files = readdirSync(pendingDir).filter((f: string) => f.endsWith('.zip'));
-          if (files.length > 0) zipPath = path.join(pendingDir, files[0]);
-        } catch {
-          // ignore
-        }
-      }
-
-      if (zipPath) {
-        log('Signature validation failed — installing update manually');
-        manualInstall(zipPath);
-      } else {
-        log('Could not find downloaded update (event path + cache both empty)');
-      }
-    }
   });
 
-  autoUpdater.checkForUpdatesAndNotify().catch((error) => {
-    log(`checkForUpdatesAndNotify() rejected: ${error.message}`);
+  autoUpdater.checkForUpdates().catch((error) => {
+    log(`checkForUpdates() rejected: ${error.message}`);
     broadcast('updater-status', { type: 'error', message: error.message });
   });
 
   const intervalMs = 4 * 60 * 60 * 1000;
   setInterval(() => {
     log('Periodic update check...');
-    autoUpdater.checkForUpdatesAndNotify().catch((error) => {
+    autoUpdater.checkForUpdates().catch((error) => {
       log(`Periodic check failed: ${error.message}`);
     });
   }, intervalMs);
 }
 
 export function toggleBetaFeed(useBeta: boolean): void {
-  if (useBeta) {
-    autoUpdater.allowPrerelease = true;
-    autoUpdater.allowDowngrade = true;
-  } else {
-    autoUpdater.allowPrerelease = false;
-    autoUpdater.allowDowngrade = false;
-  }
+  autoUpdater.allowPrerelease = useBeta;
+  autoUpdater.allowDowngrade = useBeta;
 
   const feed = getFeedURL(useBeta);
   log(`Toggle beta: switching to provider=${feed.provider}, beta=${useBeta}`);
   autoUpdater.setFeedURL(feed);
 
-  autoUpdater.checkForUpdatesAndNotify().catch((error) => {
+  autoUpdater.checkForUpdates().catch((error) => {
     log(`Toggle check failed: ${error.message}`);
     broadcast('updater-status', { type: 'error', message: error.message });
   });
 }
 
-function manualInstall(zipPath: string): void {
-  const appName = app.getName();
-  const targetDir = path.dirname(app.getPath('exe')); // /Applications
-  const appBundle = `${appName}.app`;
+/**
+ * Installs the downloaded update and relaunches the app.
+ *
+ * On Windows/Linux electron-updater's quitAndInstall works fine (NSIS / AppImage
+ * don't require code signing). On macOS we cannot use Squirrel.Mac for an
+ * unsigned app, so we spawn a detached helper that waits for this process to
+ * exit, swaps the .app bundle in place, and relaunches it.
+ *
+ * Returns false if there is nothing to install.
+ */
+export function installUpdate(): boolean {
+  if (process.platform !== 'darwin') {
+    // Windows (NSIS) / Linux (AppImage) — standard path works.
+    autoUpdater.quitAndInstall();
+    return true;
+  }
 
-  const script = `
-    set -e
-    TMPDIR="$(mktemp -d)"
-    unzip -qo "${zipPath}" -d "$TMPDIR"
-    if [ -d "$TMPDIR/${appBundle}" ]; then
-      rm -rf "${targetDir}/${appBundle}"
-      mv "$TMPDIR/${appBundle}" "${targetDir}/"
-      open "${targetDir}/${appBundle}"
-    fi
-    rm -rf "$TMPDIR"
-  `;
+  if (!downloadedZipPath) {
+    log('installUpdate() called but no downloaded update is available');
+    return false;
+  }
 
-  log(`Running manual install script for ${appBundle}`);
-  exec(script, (err, stdout, stderr) => {
-    if (err) {
-      log(`Manual install failed: ${stderr}`);
-    } else {
-      log(`Manual install completed — quitting`);
-      setTimeout(() => app.quit(), 1000);
-    }
-  });
+  // Derive the installed .app bundle path from the executable path, e.g.
+  // /Applications/Backlog Hero.app/Contents/MacOS/Backlog Hero -> /Applications/Backlog Hero.app
+  const exePath = app.getPath('exe');
+  const appExtIndex = exePath.indexOf('.app/');
+  const installedAppPath =
+    appExtIndex !== -1 ? exePath.slice(0, appExtIndex + 4) : path.dirname(exePath);
+
+  // Helper script: wait for us to quit, replace the bundle, relaunch.
+  const script = `#!/bin/bash
+set -e
+APP_PID="$1"
+ZIP="$2"
+DEST="$3"
+
+# Wait (up to ~30s) for the running app to exit so we can replace it.
+for i in $(seq 1 60); do
+  if ! kill -0 "$APP_PID" 2>/dev/null; then break; fi
+  sleep 0.5
+done
+
+TMP="$(mktemp -d)"
+/usr/bin/unzip -qo "$ZIP" -d "$TMP"
+NEW_APP="$(/usr/bin/find "$TMP" -maxdepth 1 -name '*.app' | head -1)"
+
+if [ -n "$NEW_APP" ]; then
+  /bin/rm -rf "$DEST"
+  /bin/mv "$NEW_APP" "$DEST"
+  # Strip quarantine so Gatekeeper doesn't block the relaunch.
+  /usr/bin/xattr -dr com.apple.quarantine "$DEST" 2>/dev/null || true
+  /usr/bin/open "$DEST"
+fi
+
+/bin/rm -rf "$TMP"
+`;
+
+  try {
+    const scriptDir = mkdtempSync(path.join(tmpdir(), 'backlog-hero-update-'));
+    const scriptPath = path.join(scriptDir, 'install.sh');
+    writeFileSync(scriptPath, script, { mode: 0o755 });
+
+    log(`Installing update v${downloadedVersion ?? '?'} — spawning detached installer`);
+
+    const child = spawn(
+      '/bin/bash',
+      [scriptPath, String(process.pid), downloadedZipPath, installedAppPath],
+      { detached: true, stdio: 'ignore' },
+    );
+    child.unref();
+
+    // Give the helper a moment to start, then quit so it can replace the bundle.
+    setTimeout(() => app.quit(), 500);
+    return true;
+  } catch (error) {
+    log(`Failed to start installer: ${(error as Error).message}`);
+    return false;
+  }
 }

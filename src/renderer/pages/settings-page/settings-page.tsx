@@ -13,9 +13,19 @@ export const SettingsPage = () => {
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(false);
   const [betaUpdates, setBetaUpdates] = useState(false);
+  const [appVersion, setAppVersion] = useState('');
+  const [updateStatus, setUpdateStatus] = useState<{
+    type: string;
+    version?: string;
+    message?: string;
+    percent?: number;
+  } | null>(null);
 
   useEffect(() => {
     loadSettings();
+    window.electronAPI.getAppVersion().then(setAppVersion).catch(console.error);
+    const unsubscribe = window.electronAPI.onUpdaterStatus(setUpdateStatus);
+    return unsubscribe;
   }, []);
 
   const loadSettings = async () => {
@@ -219,8 +229,15 @@ export const SettingsPage = () => {
       <div className={styles.settingsSection}>
         <h2>Updates</h2>
         <p className={styles.settingsDescription}>
+          Current version: <strong>{appVersion || '—'}</strong>{' '}
+          <span className={styles.channelBadge}>
+            {betaUpdates ? 'beta channel' : 'stable channel'}
+          </span>
+        </p>
+        <p className={styles.settingsDescription}>
           Beta builds are created from every push to the develop branch. Enable to receive the
-          latest changes before they are released.
+          latest changes before they are released. The version shown above only changes after an
+          update has been downloaded and installed.
         </p>
         <label className={styles.checkboxLabel}>
           <input
@@ -229,11 +246,41 @@ export const SettingsPage = () => {
             onChange={async (e) => {
               const value = e.target.checked;
               setBetaUpdates(value);
+              setUpdateStatus(null);
               await window.electronAPI.saveBetaUpdates(value);
             }}
           />
           Use beta updates
         </label>
+
+        {updateStatus && (
+          <div className={styles.updateStatus}>
+            {updateStatus.type === 'checking' && <span>Checking for updates…</span>}
+            {updateStatus.type === 'available' && (
+              <span>Update available: v{updateStatus.version} — downloading…</span>
+            )}
+            {updateStatus.type === 'downloading' && (
+              <span>Downloading update… {updateStatus.percent ?? 0}%</span>
+            )}
+            {updateStatus.type === 'not-available' && (
+              <span>You&apos;re up to date (v{updateStatus.version}).</span>
+            )}
+            {updateStatus.type === 'error' && (
+              <span className={styles.error}>Update error: {updateStatus.message}</span>
+            )}
+            {updateStatus.type === 'downloaded' && (
+              <div className={styles.settingsActions}>
+                <span>Version {updateStatus.version} is ready to install.</span>
+                <button
+                  className={styles.btnPrimary}
+                  onClick={() => window.electronAPI.installUpdate()}
+                >
+                  Restart &amp; Install
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
