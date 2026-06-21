@@ -95,8 +95,8 @@ export function getLogDate(status?: GameStatus): number {
 }
 
 /**
- * Games the user has "logged" — anything with a tracked status (or marked
- * endless) or a non-empty note — newest first. Entries without a date sort last.
+ * Games the user has "logged" — anything with a tracked status or a non-empty
+ * note — newest first. Entries without a date sort last.
  */
 export function getLogEntries(
   statuses: Record<number, GameStatus | undefined>,
