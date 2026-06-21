@@ -5,6 +5,7 @@ import { HashRouter, Routes, Route } from 'react-router-dom';
 import { Header } from 'components/header';
 import { GameProvider } from 'context/game-context';
 import { HomePage } from 'pages/home-page';
+import { LogPage } from 'pages/log-page';
 import { SettingsPage } from 'pages/settings-page';
 
 import styles from './main.module.css';
@@ -19,6 +20,7 @@ createRoot(document.getElementById('root')!).render(
           <main className={styles.mainContent}>
             <Routes>
               <Route path="/" element={<HomePage />} />
+              <Route path="/log" element={<LogPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Routes>
           </main>
