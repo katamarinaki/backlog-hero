@@ -7,6 +7,7 @@ import {
   buildLibraryCapsuleUrl,
   STORE_ASSET_BASE,
   getSuggestedSessionMinutes,
+  computeSharedRating,
 } from './logUtils';
 import type { GameSession, GameStatus, SteamGame } from './types';
 
@@ -99,6 +100,22 @@ describe('getSuggestedSessionMinutes', () => {
     const sessions = [session({ minutes: 500, date: '2024-06-19' })];
     expect(getSuggestedSessionMinutes(300, sessions, now)).toBe(0);
     expect(getSuggestedSessionMinutes(0, [], now)).toBe(0);
+  });
+});
+
+describe('computeSharedRating', () => {
+  it('uses the session rating when there is no current rating', () => {
+    expect(computeSharedRating(null, 80)).toBe(80);
+    expect(computeSharedRating(undefined, 0)).toBe(0);
+  });
+
+  it('averages the current rating (as one session) with the new session', () => {
+    expect(computeSharedRating(80, 100)).toBe(90);
+    expect(computeSharedRating(0, 50)).toBe(25);
+  });
+
+  it('rounds to the nearest integer', () => {
+    expect(computeSharedRating(81, 100)).toBe(91); // 90.5 -> 91
   });
 });
 

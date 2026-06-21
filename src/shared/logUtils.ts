@@ -65,6 +65,20 @@ export function getRecentActivity(games: SteamGame[]): SteamGame[] {
     });
 }
 
+/**
+ * Folds a new session rating into the game's shared rating. The existing global
+ * rating (if any) counts as a single prior session, so the result is the average
+ * of the current rating and the new session rating. With no prior rating, the
+ * session rating becomes the rating.
+ */
+export function computeSharedRating(
+  currentRating: number | null | undefined,
+  sessionRating: number,
+): number {
+  if (currentRating == null) return sessionRating;
+  return Math.round((currentRating + sessionRating) / 2);
+}
+
 export interface LogEntry {
   appid: number;
   /** Millisecond timestamp used for ordering; 0 when no date is known. */

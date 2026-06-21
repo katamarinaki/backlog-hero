@@ -25,6 +25,7 @@ interface GameContextValue {
   // Data
   games: SteamGame[];
   ratings: Record<number, GameRating>;
+  userRatings: Record<number, number>;
   notes: Record<number, string>;
   statuses: Record<number, GameStatus | undefined>;
   achievements: Record<number, GameAchievements>;
@@ -55,6 +56,7 @@ interface GameContextValue {
   // Actions
   saveNote: (note: string) => Promise<void>;
   saveStatus: (status: GameStatus | null) => Promise<void>;
+  saveUserRating: (appid: number, rating: number) => Promise<void>;
   saveSession: (appid: number, session: GameSession) => Promise<void>;
   deleteSession: (appid: number, id: string) => Promise<void>;
   refreshLibrary: () => Promise<void>;
@@ -82,6 +84,7 @@ interface GameProviderProps {
 export const GameProvider = ({ children }: GameProviderProps) => {
   const [games, setGames] = useState<SteamGame[]>([]);
   const [ratings, setRatings] = useState<Record<number, GameRating>>({});
+  const [userRatings, setUserRatings] = useState<Record<number, number>>({});
   const [notes, setNotes] = useState<Record<number, string>>({});
   const [statuses, setStatuses] = useState<Record<number, GameStatus>>({});
   const [achievements, setAchievements] = useState<Record<number, GameAchievements>>({});
@@ -114,6 +117,7 @@ export const GameProvider = ({ children }: GameProviderProps) => {
           cachedStatuses,
           cachedAchievements,
           cachedSessions,
+          cachedUserRatings,
           filterPrefs,
         ] = await Promise.all([
           window.electronAPI.getGames(),
@@ -122,6 +126,7 @@ export const GameProvider = ({ children }: GameProviderProps) => {
           window.electronAPI.getStatuses(),
           window.electronAPI.getAchievements(),
           window.electronAPI.getSessions(),
+          window.electronAPI.getUserRatings(),
           window.electronAPI.getFilterPreferences(),
         ]);
 
@@ -142,6 +147,9 @@ export const GameProvider = ({ children }: GameProviderProps) => {
         }
         if (cachedSessions) {
           setSessions(cachedSessions);
+        }
+        if (cachedUserRatings) {
+          setUserRatings(cachedUserRatings);
         }
         if (filterPrefs) {
           setStatusFilter(filterPrefs.statusFilter);
@@ -200,6 +208,11 @@ export const GameProvider = ({ children }: GameProviderProps) => {
     },
     [selectedGame],
   );
+
+  const saveUserRating = useCallback(async (appid: number, rating: number) => {
+    await window.electronAPI.saveUserRating(appid, rating);
+    setUserRatings((prev) => ({ ...prev, [appid]: rating }));
+  }, []);
 
   const saveSession = useCallback(async (appid: number, sessionToSave: GameSession) => {
     const updated = await window.electronAPI.saveSession(appid, sessionToSave);
@@ -368,6 +381,7 @@ export const GameProvider = ({ children }: GameProviderProps) => {
   const value: GameContextValue = {
     games,
     ratings,
+    userRatings,
     notes,
     statuses,
     achievements,
@@ -386,6 +400,7 @@ export const GameProvider = ({ children }: GameProviderProps) => {
     statusCounts,
     saveNote,
     saveStatus,
+    saveUserRating,
     saveSession,
     deleteSession,
     refreshLibrary,

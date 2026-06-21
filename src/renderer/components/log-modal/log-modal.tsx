@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useGameContext } from 'context/game-context';
 import type { GameSession, GameStatusType, SteamGame } from 'types';
 
-import { getSuggestedSessionMinutes } from '../../../shared/logUtils';
+import { getSuggestedSessionMinutes, computeSharedRating } from '../../../shared/logUtils';
 import { formatPlaytime } from '../../../shared/gameUtils';
 
 import styles from './log-modal.module.css';
@@ -33,7 +33,15 @@ const formatSessionDate = (iso: string) => {
 };
 
 export const LogModal = ({ game, onClose }: Props) => {
-  const { sessions, saveSession, deleteSession, statuses, saveStatus } = useGameContext();
+  const {
+    sessions,
+    saveSession,
+    deleteSession,
+    statuses,
+    saveStatus,
+    userRatings,
+    saveUserRating,
+  } = useGameContext();
 
   const gameSessions = useMemo(() => sessions[game.appid] ?? [], [sessions, game.appid]);
   const suggested = useMemo(
@@ -41,10 +49,13 @@ export const LogModal = ({ game, onClose }: Props) => {
     [game.playtime_2weeks, gameSessions],
   );
 
+  const currentRating = userRatings[game.appid];
+
   const [date, setDate] = useState(todayISO());
   const [hours, setHours] = useState(Math.floor(suggested / 60));
   const [minutes, setMinutes] = useState(suggested % 60);
-  const [rating, setRating] = useState(50);
+  // The rating slider defaults to the game's current shared rating.
+  const [rating, setRating] = useState(currentRating ?? 50);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -78,10 +89,16 @@ export const LogModal = ({ game, onClose }: Props) => {
       };
       await saveSession(game.appid, session);
 
-      // Reset the form, defaulting length to the remaining unlogged time.
+      // Fold the session rating into the shared game rating (existing rating
+      // counts as one session).
+      const newRating = computeSharedRating(currentRating ?? null, rating);
+      await saveUserRating(game.appid, newRating);
+
+      // Reset the form: length -> remaining unlogged time, rating -> new shared.
       const remaining = Math.max(0, suggested - totalMinutes);
       setHours(Math.floor(remaining / 60));
       setMinutes(remaining % 60);
+      setRating(newRating);
       setNotes('');
     } finally {
       setSaving(false);
@@ -191,6 +208,11 @@ export const LogModal = ({ game, onClose }: Props) => {
               <span>0</span>
               <span>100</span>
             </div>
+            <p className={styles.hint}>
+              {currentRating == null
+                ? 'Sets the game rating'
+                : `Averages into the game rating (currently ${currentRating})`}
+            </p>
           </section>
 
           {/* Notes */}
