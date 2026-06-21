@@ -48,6 +48,12 @@ export const GameCardModal = ({ game, onClose }: Props) => {
     });
   }, [game.appid]);
 
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, []);
+
   // Lazy fetch rating + achievements for this game
   const [lazyRating, setLazyRating] = useState<typeof rating | undefined>(undefined);
   const [lazyAchievements, setLazyAchievements] = useState<typeof achievements | undefined>(
