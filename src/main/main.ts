@@ -16,6 +16,10 @@ import { migrateCompletionsToStatuses } from './migration';
 import { initAutoUpdater, toggleBetaFeed } from './updater';
 import { fetchOwnedGames, fetchGameRating, fetchGameAchievements } from './steam-api';
 
+// --- Debug IPC ---
+
+ipcMain.handle('get-is-packaged', () => app.isPackaged);
+
 // --- Startup migration ---
 
 migrateCompletionsToStatuses();
