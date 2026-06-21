@@ -516,6 +516,22 @@ ipcMain.handle('get-beta-updates', () => {
 
 ipcMain.handle('save-beta-updates', (_, useBeta: boolean) => {
   store.set('useBetaUpdates', useBeta);
+
+  if (app.isPackaged) {
+    if (useBeta) {
+      autoUpdater.setFeedURL({
+        provider: 'generic',
+        url: 'https://github.com/katamarinaki/backlog-hero/releases/download/beta/',
+      });
+    } else {
+      autoUpdater.setFeedURL({
+        provider: 'github',
+        owner: 'katamarinaki',
+        repo: 'backlog-hero',
+      });
+    }
+  }
+
   return true;
 });
 

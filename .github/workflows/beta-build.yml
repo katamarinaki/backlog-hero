@@ -29,6 +29,13 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Set Beta Version
+        run: |
+          BASE_VERSION=$(node -p "require('./package.json').version")
+          BETA_VERSION="${BASE_VERSION}-beta.${{ github.run_number }}"
+          npm version "$BETA_VERSION" --no-git-tag-version
+          echo "Building beta version $BETA_VERSION"
+
       - name: Build Distributables
         run: npm run dist -- --publish=never
 
@@ -55,19 +62,11 @@ jobs:
           path: beta-artifacts
           merge-multiple: true
 
-      - name: Delete Old Beta Tag
-        run: |
-          git push origin --delete beta 2>/dev/null || true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Delete Old Beta Release
-        uses: actions/delete-release@v1
-        continue-on-error: true
-        with:
-          release-tag: beta
+        run: |
+          gh release delete beta --yes --cleanup-tag 2>/dev/null || true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Beta Release
         uses: ncipollo/release-action@v1
