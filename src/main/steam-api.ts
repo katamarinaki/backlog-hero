@@ -170,7 +170,7 @@ export async function fetchGameAchievements(
 ): Promise<GameAchievements | null> {
   const url = `https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/?appid=${appid}&key=${apiKey}&steamid=${steamId}`;
 
-  const result = await steamFetch<PlayerAchievementsResponse>(url, 10_000);
+  const result = await steamFetchWithRetry<PlayerAchievementsResponse>(url, 10_000, 1);
   if (!result.data?.playerstats?.achievements) return null;
 
   const achievements = result.data.playerstats.achievements;

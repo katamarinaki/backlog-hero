@@ -64,9 +64,15 @@ function createWindow() {
     return { action: 'deny' };
   });
 
-  // Prevent in-app navigation away from the app
-  mainWindow.webContents.on('will-navigate', (event) => {
-    event.preventDefault();
+  // Prevent in-app navigation away from the app (allow dev server)
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const allowed =
+      process.env.NODE_ENV === 'development'
+        ? url.startsWith('http://localhost:5173')
+        : url.startsWith('file://');
+    if (!allowed) {
+      event.preventDefault();
+    }
   });
 
   if (process.env.NODE_ENV === 'development') {
