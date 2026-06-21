@@ -59,7 +59,7 @@ export function migrateStatusSchema(
       changed = true;
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { isEndless: _, ...rest } = raw;
-      if (rest.status || rest.statusDate || rest.completedDate) result[appid] = rest;
+      if (Object.keys(rest).length > 0) result[appid] = rest;
       continue;
     }
 

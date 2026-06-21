@@ -63,6 +63,15 @@ export const LogModal = ({ game, onClose }: Props) => {
   // Edit mode — when set, the form edits this session instead of creating a new one
   const [editingSession, setEditingSession] = useState<GameSession | null>(null);
 
+  // Keep the length fields in sync with the suggestion (e.g. if sessions
+  // finish loading after the modal mounts). Only updates when not editing.
+  useEffect(() => {
+    if (!editingSession) {
+      setHours(Math.floor(suggested / 60));
+      setMinutes(suggested % 60);
+    }
+  }, [suggested, editingSession]);
+
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -131,10 +140,10 @@ export const LogModal = ({ game, onClose }: Props) => {
   const handleStatus = async (status: GameStatusType) => {
     const next = currentStatus === status ? null : status;
     if (next === null) {
-      await saveStatus(null);
+      await saveStatus(game.appid, null);
       return;
     }
-    await saveStatus({
+    await saveStatus(game.appid, {
       status: next,
       statusDate: new Date().toISOString(),
       completedDate: next === 'completed' ? date : undefined,

@@ -115,7 +115,7 @@ export const GameCardModal = ({ game, onClose }: Props) => {
     setSelectedStatus(newStatus);
     if (newStatus === null) {
       setCompletedDate('');
-      await saveStatus(null);
+      await saveStatus(game.appid, null);
     } else {
       const statusObj: GameStatus = {
         status: newStatus,
@@ -124,14 +124,14 @@ export const GameCardModal = ({ game, onClose }: Props) => {
       if (newStatus === 'completed' && completedDate) {
         statusObj.completedDate = completedDate;
       }
-      await saveStatus(statusObj);
+      await saveStatus(game.appid, statusObj);
     }
   };
 
   const handleDateChange = async (date: string) => {
     setCompletedDate(date);
     if (selectedStatus === 'completed') {
-      await saveStatus({
+      await saveStatus(game.appid, {
         status: 'completed',
         statusDate: new Date().toISOString(),
         completedDate: date || undefined,

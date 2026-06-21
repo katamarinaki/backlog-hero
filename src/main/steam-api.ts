@@ -180,11 +180,11 @@ interface GetItemsResponse {
  * hash-pathed assets that can't be guessed from the appid alone. Batched into a
  * single request; returns a map of appid -> cover URL (missing/unknown omitted).
  */
-export async function fetchCoverUrls(appids: number[]): Promise<Record<number, string>> {
-  if (appids.length === 0) return {};
+const COVER_CHUNK_SIZE = 100;
 
+async function fetchCoverUrlsChunk(chunk: number[]): Promise<Record<number, string>> {
   const input = {
-    ids: appids.map((appid) => ({ appid })),
+    ids: chunk.map((appid) => ({ appid })),
     context: { language: 'english', country_code: 'US' },
     data_request: { include_assets: true },
   };
@@ -194,9 +194,7 @@ export async function fetchCoverUrls(appids: number[]): Promise<Record<number, s
 
   const result = await steamFetchWithRetry<GetItemsResponse>(url, 15_000, 1);
   const items = result.data?.response?.store_items;
-  if (!items) {
-    throw new Error(result.error || 'Failed to fetch cover assets');
-  }
+  if (!items) return {};
 
   const covers: Record<number, string> = {};
   for (const item of items) {
@@ -208,6 +206,18 @@ export async function fetchCoverUrls(appids: number[]): Promise<Record<number, s
     if (appid && coverUrl) covers[appid] = coverUrl;
   }
   return covers;
+}
+
+export async function fetchCoverUrls(appids: number[]): Promise<Record<number, string>> {
+  if (appids.length === 0) return {};
+
+  const chunks: number[][] = [];
+  for (let i = 0; i < appids.length; i += COVER_CHUNK_SIZE) {
+    chunks.push(appids.slice(i, i + COVER_CHUNK_SIZE));
+  }
+
+  const results = await Promise.all(chunks.map(fetchCoverUrlsChunk));
+  return Object.assign({}, ...results);
 }
 
 export async function fetchGameAchievements(

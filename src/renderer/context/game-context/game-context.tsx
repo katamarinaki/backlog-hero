@@ -55,7 +55,7 @@ interface GameContextValue {
 
   // Actions
   saveNote: (note: string) => Promise<void>;
-  saveStatus: (status: GameStatus | null) => Promise<void>;
+  saveStatus: (appid: number, status: GameStatus | null) => Promise<void>;
   saveUserRating: (appid: number, rating: number) => Promise<void>;
   saveSession: (appid: number, session: GameSession) => Promise<void>;
   deleteSession: (appid: number, id: string) => Promise<void>;
@@ -192,22 +192,18 @@ export const GameProvider = ({ children }: GameProviderProps) => {
     [selectedGame],
   );
 
-  const saveStatus = useCallback(
-    async (status: GameStatus | null) => {
-      if (!selectedGame) return;
-      await window.electronAPI.saveStatus(selectedGame.appid, status);
-      setStatuses((prev) => {
-        const updated = { ...prev };
-        if (status === null) {
-          delete updated[selectedGame.appid];
-        } else {
-          updated[selectedGame.appid] = status;
-        }
-        return updated;
-      });
-    },
-    [selectedGame],
-  );
+  const saveStatus = useCallback(async (appid: number, status: GameStatus | null) => {
+    await window.electronAPI.saveStatus(appid, status);
+    setStatuses((prev) => {
+      const updated = { ...prev };
+      if (status === null) {
+        delete updated[appid];
+      } else {
+        updated[appid] = status;
+      }
+      return updated;
+    });
+  }, []);
 
   const saveUserRating = useCallback(async (appid: number, rating: number) => {
     await window.electronAPI.saveUserRating(appid, rating);

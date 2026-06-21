@@ -330,7 +330,14 @@ ipcMain.handle(
 ipcMain.handle('get-sessions', () => store.get('sessions') || {});
 
 ipcMain.handle('save-session', (_, { appid, session }: { appid: number; session: GameSession }) => {
-  if (typeof appid !== 'number' || !session || typeof session.id !== 'string') {
+  if (
+    typeof appid !== 'number' ||
+    !session ||
+    typeof session.id !== 'string' ||
+    typeof session.minutes !== 'number' ||
+    session.minutes < 0 ||
+    session.appid !== appid
+  ) {
     throw new Error('Invalid session payload');
   }
   const sessions = store.get('sessions') || {};
