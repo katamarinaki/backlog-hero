@@ -9,6 +9,7 @@ import {
 } from 'react';
 import type { ReactNode } from 'react';
 
+import { isFetchStale } from '@shared/gameUtils';
 import type { GameAchievements, GameRating, GameStatus, StatusFilter, SteamGame } from 'types';
 
 type SortOption = 'playtime' | 'name' | 'rating' | 'last_played' | 'status_date';
@@ -21,6 +22,10 @@ interface GameContextValue {
   statuses: Record<number, GameStatus | undefined>;
   achievements: Record<number, GameAchievements>;
   hasSettings: boolean;
+
+  // Error state
+  error: string | null;
+  clearError: () => void;
 
   // Filters & sorting
   searchQuery: string;
@@ -77,7 +82,10 @@ export const GameProvider = ({ children }: GameProviderProps) => {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [selectedGame, setSelectedGame] = useState<SteamGame | null>(null);
   const [syncLoading, setSyncLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const hasLoadedRef = useRef(false);
+
+  const clearError = useCallback(() => setError(null), []);
 
   useEffect(() => {
     if (hasLoadedRef.current) return;
@@ -126,10 +134,30 @@ export const GameProvider = ({ children }: GameProviderProps) => {
         }
       } catch (err) {
         console.error('Failed to load data:', err);
+        setError('Failed to load saved data. Try restarting the app.');
       }
     };
     loadData();
   }, []);
+
+  // Auto-refresh library if last fetch was more than 6 hours ago
+  useEffect(() => {
+    if (!hasSettings) return;
+
+    const checkAndFetch = async () => {
+      try {
+        const lastFetch = await window.electronAPI.getLastFetchTimestamp();
+        if (isFetchStale(lastFetch)) {
+          const freshGames = await window.electronAPI.fetchGames();
+          setGames(freshGames);
+        }
+      } catch (err) {
+        console.error('Failed to auto-refresh library:', err);
+        setError('Failed to auto-refresh library. Check your API key and internet connection.');
+      }
+    };
+    checkAndFetch();
+  }, [hasSettings, games.length]);
 
   const saveNote = useCallback(
     async (note: string) => {
@@ -188,6 +216,9 @@ export const GameProvider = ({ children }: GameProviderProps) => {
     try {
       const fetchedGames = await window.electronAPI.fetchGames();
       setGames(fetchedGames);
+    } catch (err) {
+      console.error('Failed to refresh library:', err);
+      setError('Failed to fetch games from Steam. Check your API key and internet connection.');
     } finally {
       setSyncLoading(null);
     }
@@ -200,6 +231,9 @@ export const GameProvider = ({ children }: GameProviderProps) => {
       const appids = games.map((g) => g.appid);
       const fetchedRatings = await window.electronAPI.fetchRatings(appids);
       setRatings(fetchedRatings);
+    } catch (err) {
+      console.error('Failed to fetch ratings:', err);
+      setError('Failed to fetch Steam ratings.');
     } finally {
       setSyncLoading(null);
     }
@@ -212,6 +246,9 @@ export const GameProvider = ({ children }: GameProviderProps) => {
       const appids = games.map((g) => g.appid);
       const fetchedAchievements = await window.electronAPI.fetchAchievements(appids);
       setAchievements(fetchedAchievements);
+    } catch (err) {
+      console.error('Failed to fetch achievements:', err);
+      setError('Failed to fetch Steam achievements.');
     } finally {
       setSyncLoading(null);
     }
@@ -317,6 +354,8 @@ export const GameProvider = ({ children }: GameProviderProps) => {
     refreshLibrary,
     fetchRatings: fetchRatingsAction,
     fetchAchievements: fetchAchievementsAction,
+    error,
+    clearError,
     syncLoading,
   };
 

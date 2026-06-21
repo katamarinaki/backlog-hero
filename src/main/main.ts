@@ -1,124 +1,26 @@
 import * as path from 'path';
 import * as fs from 'fs/promises';
 
-import Store from 'electron-store';
-import { autoUpdater } from 'electron-updater';
-import { app, BrowserWindow, dialog, ipcMain, net } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 
-interface GameRating {
-  positive: number;
-  negative: number;
-  score: number;
-  total: number;
-  description: string;
-}
+import type {
+  FilterPreferences,
+  GameAchievements,
+  GameCompletion,
+  GameRating,
+  GameStatus,
+} from '../shared/types';
 
-interface GameCompletion {
-  completed: boolean;
-  completedDate?: string; // ISO date string, optional
-}
+import { store, STORE_DEFAULTS, type StoreSchema } from './store';
+import { migrateCompletionsToStatuses } from './migration';
+import { initAutoUpdater, toggleBetaFeed } from './updater';
+import { fetchOwnedGames, fetchGameRating, fetchGameAchievements } from './steam-api';
 
-type GameStatusType = 'completed' | 'in_progress' | 'dropped' | 'backlog';
+// --- Startup migration ---
 
-interface GameStatus {
-  status?: GameStatusType;
-  statusDate?: string;
-  completedDate?: string;
-  isEndless?: boolean;
-}
-
-type StatusFilter =
-  | 'all'
-  | 'completed'
-  | 'in_progress'
-  | 'dropped'
-  | 'backlog'
-  | 'untracked'
-  | 'endless';
-
-interface GameAchievements {
-  achieved: number;
-  total: number;
-}
-
-interface FilterPreferences {
-  statusFilter: StatusFilter;
-  sortBy: 'playtime' | 'name' | 'rating' | 'last_played' | 'status_date';
-  sortAsc: boolean;
-}
-
-interface StoreSchema {
-  apiKey: string;
-  steamId: string;
-  games: SteamGame[];
-  ratings: Record<number, GameRating>;
-  notes: Record<number, string>;
-  completions: Record<number, GameCompletion>;
-  statuses: Record<number, GameStatus>;
-  achievements: Record<number, GameAchievements>;
-  filterPreferences: FilterPreferences;
-  useBetaUpdates: boolean;
-}
-
-interface SteamGame {
-  appid: number;
-  name: string;
-  playtime_forever: number;
-  img_icon_url: string;
-  img_logo_url: string;
-  playtime_2weeks?: number;
-  rtime_last_played?: number;
-}
-
-const defaultStoreData: StoreSchema = {
-  apiKey: '',
-  steamId: '',
-  games: [],
-  ratings: {},
-  notes: {},
-  completions: {},
-  statuses: {},
-  achievements: {},
-  filterPreferences: {
-    statusFilter: 'all',
-    sortBy: 'playtime',
-    sortAsc: false,
-  },
-  useBetaUpdates: false,
-};
-
-const store = new Store<StoreSchema>({
-  defaults: defaultStoreData,
-});
-
-// Migrate old completions to new statuses format
-function migrateCompletionsToStatuses() {
-  const statuses = store.get('statuses') || {};
-  const completions = store.get('completions') || {};
-
-  // Only migrate if statuses is empty but completions has data
-  if (Object.keys(statuses).length === 0 && Object.keys(completions).length > 0) {
-    const migratedStatuses: Record<number, GameStatus> = {};
-
-    for (const [appidStr, completion] of Object.entries(completions)) {
-      if (completion.completed) {
-        const appid = parseInt(appidStr, 10);
-        migratedStatuses[appid] = {
-          status: 'completed',
-          statusDate: completion.completedDate || new Date().toISOString(),
-          completedDate: completion.completedDate,
-        };
-      }
-    }
-
-    if (Object.keys(migratedStatuses).length > 0) {
-      store.set('statuses', migratedStatuses);
-    }
-  }
-}
-
-// Run migration
 migrateCompletionsToStatuses();
+
+// --- Window management ---
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -129,6 +31,13 @@ app.setAboutPanelOptions({
   credits: 'Backlog Hero',
 });
 
+const ALLOWED_EXTERNAL_HOSTS = [
+  'store.steampowered.com',
+  'steamcommunity.com',
+  'github.com',
+  'steamid.io',
+];
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -137,7 +46,35 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
     },
+  });
+
+  // Route external links to the system browser (security)
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//i.test(url)) {
+      try {
+        if (ALLOWED_EXTERNAL_HOSTS.includes(new URL(url).hostname)) {
+          shell.openExternal(url);
+        } else {
+          console.log('Blocked external link (host not in allowlist):', url);
+        }
+      } catch {
+        console.log('Blocked external link (malformed URL):', url);
+      }
+    }
+    return { action: 'deny' };
+  });
+
+  // Prevent in-app navigation away from the app (allow dev server)
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const allowed =
+      process.env.NODE_ENV === 'development'
+        ? url.startsWith('http://localhost:5173')
+        : url.startsWith('file://');
+    if (!allowed) {
+      event.preventDefault();
+    }
   });
 
   if (process.env.NODE_ENV === 'development') {
@@ -152,38 +89,7 @@ function createWindow() {
   });
 }
 
-function initAutoUpdater() {
-  if (!app.isPackaged) return;
-
-  const useBeta = store.get('useBetaUpdates', false);
-  if (useBeta) {
-    autoUpdater.setFeedURL({
-      provider: 'generic',
-      url: 'https://github.com/katamarinaki/backlog-hero/releases/download/beta/',
-    });
-  } else {
-    autoUpdater.setFeedURL({
-      provider: 'github',
-      owner: 'katamarinaki',
-      repo: 'backlog-hero',
-    });
-  }
-
-  autoUpdater.on('error', (error) => {
-    console.error('Auto update error:', error);
-  });
-
-  autoUpdater.checkForUpdatesAndNotify().catch((error) => {
-    console.error('Auto update check failed:', error);
-  });
-
-  const intervalMs = 4 * 60 * 60 * 1000;
-  setInterval(() => {
-    autoUpdater.checkForUpdatesAndNotify().catch((error) => {
-      console.error('Auto update check failed:', error);
-    });
-  }, intervalMs);
-}
+// --- App lifecycle ---
 
 app.whenReady().then(() => {
   createWindow();
@@ -202,21 +108,50 @@ app.on('activate', () => {
   }
 });
 
-// IPC Handlers for settings
-ipcMain.handle('get-settings', () => {
-  return {
-    apiKey: store.get('apiKey'),
-    steamId: store.get('steamId'),
-  };
-});
+// --- IPC: Settings ---
 
-ipcMain.handle('save-settings', (_, settings: { apiKey: string; steamId: string }) => {
-  store.set('apiKey', settings.apiKey);
-  store.set('steamId', settings.steamId);
+ipcMain.handle('get-settings', () => ({
+  apiKey: store.get('apiKey'),
+  steamId: store.get('steamId'),
+}));
+
+ipcMain.handle('save-settings', (_, settings: unknown) => {
+  if (
+    !settings ||
+    typeof settings !== 'object' ||
+    typeof (settings as Record<string, unknown>).apiKey !== 'string' ||
+    typeof (settings as Record<string, unknown>).steamId !== 'string'
+  ) {
+    throw new Error('Invalid settings: apiKey and steamId must be strings');
+  }
+  const apiKey = (settings as { apiKey: string }).apiKey.trim();
+  const steamId = (settings as { steamId: string }).steamId.trim();
+  if (!apiKey || !steamId) {
+    throw new Error('API key and Steam ID must not be empty');
+  }
+  store.set('apiKey', apiKey);
+  store.set('steamId', steamId);
   return true;
 });
 
-// IPC Handler for fetching games from Steam API
+// --- IPC: Beta updates ---
+
+ipcMain.handle('get-beta-updates', () => store.get('useBetaUpdates', false));
+
+ipcMain.handle('save-beta-updates', (_, useBeta: unknown) => {
+  if (typeof useBeta !== 'boolean') {
+    throw new Error('useBeta must be a boolean');
+  }
+  store.set('useBetaUpdates', useBeta);
+
+  if (app.isPackaged) {
+    toggleBetaFeed(useBeta);
+  }
+  return true;
+});
+
+// --- IPC: Games ---
+
 ipcMain.handle('fetch-games', async () => {
   const apiKey = store.get('apiKey');
   const steamId = store.get('steamId');
@@ -225,130 +160,40 @@ ipcMain.handle('fetch-games', async () => {
     throw new Error('API key and Steam ID are required');
   }
 
-  const url = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=${apiKey}&steamid=${steamId}&include_appinfo=true&include_played_free_games=true&format=json`;
-
-  return new Promise((resolve, reject) => {
-    const request = net.request(url);
-    let data = '';
-
-    request.on('response', (response) => {
-      response.on('data', (chunk) => {
-        data += chunk.toString();
-      });
-
-      response.on('end', () => {
-        try {
-          const parsed = JSON.parse(data);
-          if (parsed.response && parsed.response.games) {
-            const games = parsed.response.games as SteamGame[];
-            store.set('games', games);
-            resolve(games);
-          } else {
-            reject(new Error('Invalid response from Steam API'));
-          }
-        } catch {
-          reject(new Error('Failed to parse Steam API response'));
-        }
-      });
-    });
-
-    request.on('error', (error) => {
-      reject(error);
-    });
-
-    request.end();
-  });
+  const games = await fetchOwnedGames(apiKey, steamId);
+  store.set('games', games);
+  store.set('lastFetchTimestamp', Date.now());
+  return games;
 });
 
-// IPC Handler for getting cached games
-ipcMain.handle('get-games', () => {
-  return store.get('games');
-});
+ipcMain.handle('get-games', () => store.get('games'));
 
-// Helper to get rating description based on score
-function getRatingDescription(score: number): string {
-  if (score >= 95) return 'Overwhelmingly Positive';
-  if (score >= 85) return 'Very Positive';
-  if (score >= 80) return 'Positive';
-  if (score >= 70) return 'Mostly Positive';
-  if (score >= 40) return 'Mixed';
-  if (score >= 20) return 'Mostly Negative';
-  if (score >= 15) return 'Negative';
-  if (score >= 5) return 'Very Negative';
-  return 'Overwhelmingly Negative';
-}
+ipcMain.handle('get-last-fetch-timestamp', () => store.get('lastFetchTimestamp', 0));
 
-// Fetch rating for a single game
-async function fetchGameRating(appid: number): Promise<GameRating | null> {
-  const url = `https://store.steampowered.com/appreviews/${appid}?json=1&language=all&purchase_type=all`;
+// --- IPC: Ratings ---
 
-  return new Promise((resolve) => {
-    const request = net.request(url);
-    let data = '';
-
-    request.on('response', (response) => {
-      response.on('data', (chunk) => {
-        data += chunk.toString();
-      });
-
-      response.on('end', () => {
-        try {
-          const parsed = JSON.parse(data);
-          if (parsed.success && parsed.query_summary) {
-            const summary = parsed.query_summary;
-            const positive = summary.total_positive || 0;
-            const negative = summary.total_negative || 0;
-            const total = positive + negative;
-            const score = total > 0 ? Math.round((positive / total) * 100) : 0;
-
-            resolve({
-              positive,
-              negative,
-              total,
-              score,
-              description: getRatingDescription(score),
-            });
-          } else {
-            resolve(null);
-          }
-        } catch {
-          resolve(null);
-        }
-      });
-    });
-
-    request.on('error', () => {
-      resolve(null);
-    });
-
-    request.end();
-  });
-}
-
-// IPC Handler for fetching ratings (batch)
 ipcMain.handle('fetch-ratings', async (event, appids: number[]) => {
   const cachedRatings = store.get('ratings') || {};
   const newRatings: Record<number, GameRating> = { ...cachedRatings };
-  const totalToFetch = appids.filter((id) => !cachedRatings[id]).length;
+  const toFetch = appids.filter((id) => !cachedRatings[id]);
+  const total = toFetch.length;
   let fetched = 0;
 
-  // Fetch ratings in batches to avoid overwhelming the API
   const batchSize = 5;
-  for (let i = 0; i < appids.length; i += batchSize) {
-    const batch = appids.slice(i, i + batchSize);
-    const promises = batch.map(async (appid) => {
-      if (!cachedRatings[appid]) {
+  for (let i = 0; i < toFetch.length; i += batchSize) {
+    const batch = toFetch.slice(i, i + batchSize);
+    const results = await Promise.all(
+      batch.map(async (appid) => {
         const rating = await fetchGameRating(appid);
         fetched++;
-        event.sender.send('fetch-ratings-progress', { fetched, total: totalToFetch });
-        if (rating) {
-          newRatings[appid] = rating;
-        }
-      }
-    });
-    await Promise.all(promises);
-    // Small delay between batches to be nice to Steam's API
-    if (i + batchSize < appids.length) {
+        event.sender.send('fetch-ratings-progress', { fetched, total });
+        return { appid, rating };
+      }),
+    );
+    for (const { appid, rating } of results) {
+      if (rating) newRatings[appid] = rating;
+    }
+    if (i + batchSize < toFetch.length) {
       await new Promise((r) => setTimeout(r, 200));
     }
   }
@@ -357,15 +202,37 @@ ipcMain.handle('fetch-ratings', async (event, appids: number[]) => {
   return newRatings;
 });
 
-// IPC Handler for getting cached ratings
-ipcMain.handle('get-ratings', () => {
-  return store.get('ratings') || {};
+ipcMain.handle('fetch-rating', async (_, appid: number) => {
+  const apiKey = store.get('apiKey');
+  const steamId = store.get('steamId');
+  if (!apiKey || !steamId) throw new Error('API key and Steam ID are required');
+
+  const cached = (store.get('ratings') || {}) as Record<number, GameRating>;
+  if (cached[appid]) return cached[appid];
+
+  const rating = await fetchGameRating(appid);
+  if (rating) {
+    const ratings = store.get('ratings') || {};
+    ratings[appid] = rating;
+    store.set('ratings', ratings);
+
+    const timestamps = store.get('ratingTimestamps') || {};
+    timestamps[appid] = Date.now();
+    store.set('ratingTimestamps', timestamps);
+  }
+  return rating;
 });
 
-// IPC Handlers for notes
-ipcMain.handle('get-notes', () => {
-  return store.get('notes') || {};
+ipcMain.handle('get-ratings', () => store.get('ratings') || {});
+
+ipcMain.handle('get-rating-timestamp', (_, appid: number) => {
+  const timestamps = store.get('ratingTimestamps') || {};
+  return timestamps[appid] || null;
 });
+
+// --- IPC: Notes ---
+
+ipcMain.handle('get-notes', () => store.get('notes') || {});
 
 ipcMain.handle('save-note', (_, { appid, note }: { appid: number; note: string }) => {
   const notes = store.get('notes') || {};
@@ -374,10 +241,23 @@ ipcMain.handle('save-note', (_, { appid, note }: { appid: number; note: string }
   return true;
 });
 
-// IPC Handlers for completions
-ipcMain.handle('get-completions', () => {
-  return store.get('completions') || {};
+// --- IPC: User ratings ---
+
+ipcMain.handle('get-user-ratings', () => store.get('userRatings') || {});
+
+ipcMain.handle('save-user-rating', (_, { appid, rating }: { appid: number; rating: number }) => {
+  if (rating < 0 || rating > 100 || !Number.isInteger(rating)) {
+    throw new Error('Rating must be an integer between 0 and 100');
+  }
+  const userRatings = store.get('userRatings') || {};
+  userRatings[appid] = rating;
+  store.set('userRatings', userRatings);
+  return true;
 });
+
+// --- IPC: Completions (legacy) ---
+
+ipcMain.handle('get-completions', () => store.get('completions') || {});
 
 ipcMain.handle(
   'save-completion',
@@ -393,10 +273,9 @@ ipcMain.handle(
   },
 );
 
-// IPC Handlers for game statuses
-ipcMain.handle('get-statuses', () => {
-  return store.get('statuses') || {};
-});
+// --- IPC: Statuses ---
+
+ipcMain.handle('get-statuses', () => store.get('statuses') || {});
 
 ipcMain.handle(
   'save-status',
@@ -412,80 +291,34 @@ ipcMain.handle(
   },
 );
 
-// Fetch achievements for a single game
-async function fetchGameAchievements(
-  appid: number,
-  apiKey: string,
-  steamId: string,
-): Promise<GameAchievements | null> {
-  const url = `https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v1/?appid=${appid}&key=${apiKey}&steamid=${steamId}`;
+// --- IPC: Achievements ---
 
-  return new Promise((resolve) => {
-    const request = net.request(url);
-    let data = '';
-
-    request.on('response', (response) => {
-      response.on('data', (chunk) => {
-        data += chunk.toString();
-      });
-
-      response.on('end', () => {
-        try {
-          const parsed = JSON.parse(data);
-          if (parsed.playerstats && parsed.playerstats.achievements) {
-            const achievements = parsed.playerstats.achievements;
-            const total = achievements.length;
-            const achieved = achievements.filter(
-              (a: { achieved: number }) => a.achieved === 1,
-            ).length;
-            resolve({ achieved, total });
-          } else {
-            resolve(null);
-          }
-        } catch {
-          resolve(null);
-        }
-      });
-    });
-
-    request.on('error', () => {
-      resolve(null);
-    });
-
-    request.end();
-  });
-}
-
-// IPC Handler for fetching achievements (batch)
 ipcMain.handle('fetch-achievements', async (event, appids: number[]) => {
   const apiKey = store.get('apiKey');
   const steamId = store.get('steamId');
-
-  if (!apiKey || !steamId) {
-    throw new Error('API key and Steam ID are required');
-  }
+  if (!apiKey || !steamId) throw new Error('API key and Steam ID are required');
 
   const cachedAchievements = store.get('achievements') || {};
   const newAchievements: Record<number, GameAchievements> = { ...cachedAchievements };
-  const totalToFetch = appids.filter((id) => !cachedAchievements[id]).length;
+  const toFetch = appids.filter((id) => !cachedAchievements[id]);
+  const total = toFetch.length;
   let fetched = 0;
 
-  // Fetch achievements in batches
   const batchSize = 5;
-  for (let i = 0; i < appids.length; i += batchSize) {
-    const batch = appids.slice(i, i + batchSize);
-    const promises = batch.map(async (appid) => {
-      if (!cachedAchievements[appid]) {
+  for (let i = 0; i < toFetch.length; i += batchSize) {
+    const batch = toFetch.slice(i, i + batchSize);
+    const results = await Promise.all(
+      batch.map(async (appid) => {
         const achievements = await fetchGameAchievements(appid, apiKey, steamId);
         fetched++;
-        event.sender.send('fetch-achievements-progress', { fetched, total: totalToFetch });
-        if (achievements) {
-          newAchievements[appid] = achievements;
-        }
-      }
-    });
-    await Promise.all(promises);
-    if (i + batchSize < appids.length) {
+        event.sender.send('fetch-achievements-progress', { fetched, total });
+        return { appid, achievements };
+      }),
+    );
+    for (const { appid, achievements } of results) {
+      if (achievements) newAchievements[appid] = achievements;
+    }
+    if (i + batchSize < toFetch.length) {
       await new Promise((r) => setTimeout(r, 200));
     }
   }
@@ -494,46 +327,44 @@ ipcMain.handle('fetch-achievements', async (event, appids: number[]) => {
   return newAchievements;
 });
 
-// IPC Handler for getting cached achievements
-ipcMain.handle('get-achievements', () => {
-  return store.get('achievements') || {};
+ipcMain.handle('fetch-achievement', async (_, appid: number) => {
+  const apiKey = store.get('apiKey');
+  const steamId = store.get('steamId');
+  if (!apiKey || !steamId) throw new Error('API key and Steam ID are required');
+
+  const cached = (store.get('achievements') || {}) as Record<number, GameAchievements>;
+  if (cached[appid]) return cached[appid];
+
+  const achievement = await fetchGameAchievements(appid, apiKey, steamId);
+  if (achievement) {
+    const achievements = store.get('achievements') || {};
+    achievements[appid] = achievement;
+    store.set('achievements', achievements);
+
+    const timestamps = store.get('achievementTimestamps') || {};
+    timestamps[appid] = Date.now();
+    store.set('achievementTimestamps', timestamps);
+  }
+  return achievement;
 });
 
-// IPC Handlers for filter preferences
-ipcMain.handle('get-filter-preferences', () => {
-  return store.get('filterPreferences');
+ipcMain.handle('get-achievements', () => store.get('achievements') || {});
+
+ipcMain.handle('get-achievement-timestamp', (_, appid: number) => {
+  const timestamps = store.get('achievementTimestamps') || {};
+  return timestamps[appid] || null;
 });
+
+// --- IPC: Filter preferences ---
+
+ipcMain.handle('get-filter-preferences', () => store.get('filterPreferences'));
 
 ipcMain.handle('save-filter-preferences', (_, preferences: FilterPreferences) => {
   store.set('filterPreferences', preferences);
   return true;
 });
 
-// IPC Handlers for beta updates preference
-ipcMain.handle('get-beta-updates', () => {
-  return store.get('useBetaUpdates', false);
-});
-
-ipcMain.handle('save-beta-updates', (_, useBeta: boolean) => {
-  store.set('useBetaUpdates', useBeta);
-
-  if (app.isPackaged) {
-    if (useBeta) {
-      autoUpdater.setFeedURL({
-        provider: 'generic',
-        url: 'https://github.com/katamarinaki/backlog-hero/releases/download/beta/',
-      });
-    } else {
-      autoUpdater.setFeedURL({
-        provider: 'github',
-        owner: 'katamarinaki',
-        repo: 'backlog-hero',
-      });
-    }
-  }
-
-  return true;
-});
+// --- IPC: Backup / Restore ---
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -541,9 +372,6 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 function sanitizeFilterPreferences(value: unknown): FilterPreferences | null {
   if (!isObject(value)) return null;
-  const statusFilter = value.statusFilter;
-  const sortBy = value.sortBy;
-  const sortAsc = value.sortAsc;
 
   const statusFilterValues = [
     'all',
@@ -556,6 +384,7 @@ function sanitizeFilterPreferences(value: unknown): FilterPreferences | null {
   ] as const;
   const sortByValues = ['playtime', 'name', 'rating', 'last_played', 'status_date'] as const;
 
+  const { statusFilter, sortBy, sortAsc } = value;
   if (
     !statusFilterValues.includes(statusFilter as FilterPreferences['statusFilter']) ||
     !sortByValues.includes(sortBy as FilterPreferences['sortBy']) ||
@@ -577,12 +406,16 @@ function getBackupData(): StoreSchema {
     steamId: store.get('steamId'),
     games: store.get('games'),
     ratings: store.get('ratings'),
+    ratingTimestamps: store.get('ratingTimestamps'),
+    userRatings: store.get('userRatings'),
     notes: store.get('notes'),
     completions: store.get('completions'),
     statuses: store.get('statuses'),
     achievements: store.get('achievements'),
+    achievementTimestamps: store.get('achievementTimestamps'),
     filterPreferences: store.get('filterPreferences'),
     useBetaUpdates: store.get('useBetaUpdates', false),
+    lastFetchTimestamp: store.get('lastFetchTimestamp', 0),
   };
 }
 
@@ -593,9 +426,7 @@ ipcMain.handle('export-data', async () => {
     filters: [{ name: 'JSON', extensions: ['json'] }],
   });
 
-  if (canceled || !filePath) {
-    return false;
-  }
+  if (canceled || !filePath) return false;
 
   const data = getBackupData();
   await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
@@ -609,9 +440,7 @@ ipcMain.handle('import-data', async () => {
     filters: [{ name: 'JSON', extensions: ['json'] }],
   });
 
-  if (canceled || filePaths.length === 0) {
-    return false;
-  }
+  if (canceled || filePaths.length === 0) return false;
 
   const raw = await fs.readFile(filePaths[0], 'utf8');
   const parsed: unknown = JSON.parse(raw);
@@ -622,20 +451,33 @@ ipcMain.handle('import-data', async () => {
 
   const backup = parsed as Partial<StoreSchema>;
   const filterPreferences =
-    sanitizeFilterPreferences(backup.filterPreferences) ?? defaultStoreData.filterPreferences;
+    sanitizeFilterPreferences(backup.filterPreferences) ?? STORE_DEFAULTS.filterPreferences;
 
   store.set({
-    apiKey: typeof backup.apiKey === 'string' ? backup.apiKey : defaultStoreData.apiKey,
-    steamId: typeof backup.steamId === 'string' ? backup.steamId : defaultStoreData.steamId,
-    games: Array.isArray(backup.games) ? backup.games : defaultStoreData.games,
-    ratings: isObject(backup.ratings) ? backup.ratings : defaultStoreData.ratings,
-    notes: isObject(backup.notes) ? backup.notes : defaultStoreData.notes,
-    completions: isObject(backup.completions) ? backup.completions : defaultStoreData.completions,
-    statuses: isObject(backup.statuses) ? backup.statuses : defaultStoreData.statuses,
-    achievements: isObject(backup.achievements)
-      ? backup.achievements
-      : defaultStoreData.achievements,
+    apiKey: typeof backup.apiKey === 'string' ? backup.apiKey : STORE_DEFAULTS.apiKey,
+    steamId: typeof backup.steamId === 'string' ? backup.steamId : STORE_DEFAULTS.steamId,
+    games: Array.isArray(backup.games) ? backup.games : STORE_DEFAULTS.games,
+    ratings: isObject(backup.ratings) ? backup.ratings : STORE_DEFAULTS.ratings,
+    ratingTimestamps: isObject(backup.ratingTimestamps)
+      ? backup.ratingTimestamps
+      : STORE_DEFAULTS.ratingTimestamps,
+    userRatings: isObject(backup.userRatings) ? backup.userRatings : STORE_DEFAULTS.userRatings,
+    notes: isObject(backup.notes) ? backup.notes : STORE_DEFAULTS.notes,
+    completions: isObject(backup.completions) ? backup.completions : STORE_DEFAULTS.completions,
+    statuses: isObject(backup.statuses) ? backup.statuses : STORE_DEFAULTS.statuses,
+    achievements: isObject(backup.achievements) ? backup.achievements : STORE_DEFAULTS.achievements,
+    achievementTimestamps: isObject(backup.achievementTimestamps)
+      ? backup.achievementTimestamps
+      : STORE_DEFAULTS.achievementTimestamps,
     filterPreferences,
+    useBetaUpdates:
+      typeof backup.useBetaUpdates === 'boolean'
+        ? backup.useBetaUpdates
+        : STORE_DEFAULTS.useBetaUpdates,
+    lastFetchTimestamp:
+      typeof backup.lastFetchTimestamp === 'number'
+        ? backup.lastFetchTimestamp
+        : STORE_DEFAULTS.lastFetchTimestamp,
   });
 
   return true;

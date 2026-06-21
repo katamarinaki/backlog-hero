@@ -1,3 +1,10 @@
+/** Don't auto-fetch library more than once every 6 hours */
+export const STALE_THRESHOLD_MS = 6 * 60 * 60 * 1000;
+
+export function isFetchStale(lastFetchTimestamp: number, now?: number): boolean {
+  return (now ?? Date.now()) - lastFetchTimestamp >= STALE_THRESHOLD_MS;
+}
+
 export function formatPlaytime(minutes: number): string {
   if (minutes < 60) {
     return `${minutes} min`;

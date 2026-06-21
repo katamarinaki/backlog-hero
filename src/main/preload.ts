@@ -1,61 +1,28 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
-export interface Settings {
-  apiKey: string;
-  steamId: string;
-}
+import type {
+  Settings,
+  SteamGame,
+  GameRating,
+  GameCompletion,
+  GameStatusType,
+  GameStatus,
+  StatusFilter,
+  GameAchievements,
+  FilterPreferences,
+} from '../shared/types';
 
-export interface SteamGame {
-  appid: number;
-  name: string;
-  playtime_forever: number;
-  img_icon_url: string;
-  img_logo_url: string;
-  playtime_2weeks?: number;
-  rtime_last_played?: number;
-}
-
-export interface GameRating {
-  positive: number;
-  negative: number;
-  score: number;
-  total: number;
-  description: string;
-}
-
-export interface GameCompletion {
-  completed: boolean;
-  completedDate?: string;
-}
-
-export type GameStatusType = 'completed' | 'in_progress' | 'dropped' | 'backlog';
-
-export interface GameStatus {
-  status?: GameStatusType;
-  statusDate?: string;
-  completedDate?: string;
-  isEndless?: boolean;
-}
-
-export type StatusFilter =
-  | 'all'
-  | 'completed'
-  | 'in_progress'
-  | 'dropped'
-  | 'backlog'
-  | 'untracked'
-  | 'endless';
-
-export interface GameAchievements {
-  achieved: number;
-  total: number;
-}
-
-export interface FilterPreferences {
-  statusFilter: StatusFilter;
-  sortBy: 'playtime' | 'name' | 'rating' | 'last_played' | 'status_date';
-  sortAsc: boolean;
-}
+export type {
+  Settings,
+  SteamGame,
+  GameRating,
+  GameCompletion,
+  GameStatusType,
+  GameStatus,
+  StatusFilter,
+  GameAchievements,
+  FilterPreferences,
+};
 
 contextBridge.exposeInMainWorld('electronAPI', {
   onRatingsProgress: (callback: (progress: { fetched: number; total: number }) => void) => {
@@ -79,12 +46,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('save-settings', settings),
   fetchGames: (): Promise<SteamGame[]> => ipcRenderer.invoke('fetch-games'),
   getGames: (): Promise<SteamGame[]> => ipcRenderer.invoke('get-games'),
+  getLastFetchTimestamp: (): Promise<number> => ipcRenderer.invoke('get-last-fetch-timestamp'),
   fetchRatings: (appids: number[]): Promise<Record<number, GameRating>> =>
     ipcRenderer.invoke('fetch-ratings', appids),
+  fetchRating: (appid: number): Promise<GameRating | null> =>
+    ipcRenderer.invoke('fetch-rating', appid),
   getRatings: (): Promise<Record<number, GameRating>> => ipcRenderer.invoke('get-ratings'),
   getNotes: (): Promise<Record<number, string>> => ipcRenderer.invoke('get-notes'),
   saveNote: (appid: number, note: string): Promise<boolean> =>
     ipcRenderer.invoke('save-note', { appid, note }),
+  getUserRatings: (): Promise<Record<number, number>> => ipcRenderer.invoke('get-user-ratings'),
+  saveUserRating: (appid: number, rating: number): Promise<boolean> =>
+    ipcRenderer.invoke('save-user-rating', { appid, rating }),
   getCompletions: (): Promise<Record<number, GameCompletion>> =>
     ipcRenderer.invoke('get-completions'),
   saveCompletion: (appid: number, completion: GameCompletion | null): Promise<boolean> =>
@@ -96,6 +69,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('get-achievements'),
   fetchAchievements: (appids: number[]): Promise<Record<number, GameAchievements>> =>
     ipcRenderer.invoke('fetch-achievements', appids),
+  fetchAchievement: (appid: number): Promise<GameAchievements | null> =>
+    ipcRenderer.invoke('fetch-achievement', appid),
+  getRatingTimestamp: (appid: number): Promise<number | null> =>
+    ipcRenderer.invoke('get-rating-timestamp', appid),
+  getAchievementTimestamp: (appid: number): Promise<number | null> =>
+    ipcRenderer.invoke('get-achievement-timestamp', appid),
   getFilterPreferences: (): Promise<FilterPreferences> =>
     ipcRenderer.invoke('get-filter-preferences'),
   saveFilterPreferences: (preferences: FilterPreferences): Promise<boolean> =>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 import type { SteamGame, GameStatus, GameStatusType } from 'types';
 import { useGameContext } from 'context/game-context';
@@ -31,6 +31,68 @@ export const GameCardModal = ({ game, onClose }: Props) => {
   );
   const [completedDate, setCompletedDate] = useState(gameStatus?.completedDate ?? '');
   const [isEndless, setIsEndless] = useState(gameStatus?.isEndless ?? false);
+  const [userRating, setUserRating] = useState<number | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleRatingChange = (val: number) => {
+    setUserRating(val);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      window.electronAPI.saveUserRating(game.appid, val);
+    }, 400);
+  };
+
+  useEffect(() => {
+    window.electronAPI.getUserRatings().then((ur) => {
+      setUserRating(ur[game.appid] ?? null);
+    });
+  }, [game.appid]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, []);
+
+  // Lazy fetch rating + achievements for this game
+  const [lazyRating, setLazyRating] = useState<typeof rating | undefined>(undefined);
+  const [lazyAchievements, setLazyAchievements] = useState<typeof achievements | undefined>(
+    undefined,
+  );
+  const [ratingTs, setRatingTs] = useState<number | null>(null);
+  const [achieveTs, setAchieveTs] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const appid = game.appid;
+
+    const load = async () => {
+      try {
+        if (!rating) {
+          const r = await window.electronAPI.fetchRating(appid);
+          if (!cancelled && r) setLazyRating(r);
+        }
+        if (!achievements) {
+          const a = await window.electronAPI.fetchAchievement(appid);
+          if (!cancelled && a) setLazyAchievements(a);
+        }
+        const rt = await window.electronAPI.getRatingTimestamp(appid);
+        if (!cancelled) setRatingTs(rt ?? (rating ? Date.now() : null));
+        const at = await window.electronAPI.getAchievementTimestamp(appid);
+        if (!cancelled) setAchieveTs(at ?? (achievements ? Date.now() : null));
+      } catch (err) {
+        console.error('Failed to fetch game data:', err);
+      }
+    };
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [game.appid, rating, achievements]);
+
+  const displayRating = rating || lazyRating;
+  const displayAchievements = achievements || lazyAchievements;
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -258,46 +320,98 @@ export const GameCardModal = ({ game, onClose }: Props) => {
               <span className={styles.statValue}>{game.appid}</span>
             </div>
 
-            {achievements && (
+            {displayAchievements && (
               <div className={styles.statItem}>
                 <span className={styles.statLabel}>Achievements</span>
                 <span className={styles.statValue}>
-                  {achievements.achieved} / {achievements.total}
-                  {achievements.total > 0 && (
+                  {displayAchievements.achieved} / {displayAchievements.total}
+                  {displayAchievements.total > 0 && (
                     <span className={styles.achievementPercent}>
                       {' '}
-                      ({Math.round((achievements.achieved / achievements.total) * 100)}%)
+                      (
+                      {Math.round((displayAchievements.achieved / displayAchievements.total) * 100)}
+                      %)
                     </span>
                   )}
                 </span>
+                {achieveTs && (
+                  <span className={styles.lastUpdated}>
+                    Updated {new Date(achieveTs).toLocaleDateString()}
+                  </span>
+                )}
               </div>
             )}
           </div>
 
-          {rating && (
+          {displayRating && (
             <div
               className={styles.modalRating}
-              style={{ borderColor: getRatingColor(rating.score) }}
+              style={{ borderColor: getRatingColor(displayRating.score) }}
             >
-              <div className={styles.ratingHeader} style={{ color: getRatingColor(rating.score) }}>
-                {rating.description}
+              <div
+                className={styles.ratingHeader}
+                style={{ color: getRatingColor(displayRating.score) }}
+              >
+                {displayRating.description}
               </div>
               <div className={styles.ratingDetails}>
-                <span>{rating.score}% positive</span>
+                <span>{displayRating.score}% positive</span>
                 <span className={styles.ratingSeparator}>|</span>
-                <span>{rating.total.toLocaleString()} reviews</span>
+                <span>{displayRating.total.toLocaleString()} reviews</span>
               </div>
               <div className={styles.ratingBar}>
                 <div
                   className={styles.ratingBarPositive}
                   style={{
-                    width: `${rating.score}%`,
-                    backgroundColor: getRatingColor(rating.score),
+                    width: `${displayRating.score}%`,
+                    backgroundColor: getRatingColor(displayRating.score),
                   }}
                 />
               </div>
+              {ratingTs && (
+                <div className={styles.lastUpdated}>
+                  Updated {new Date(ratingTs).toLocaleDateString()}
+                </div>
+              )}
             </div>
           )}
+
+          <div className={styles.userRatingSection}>
+            <label>Your Rating</label>
+            <div className={styles.ratingComparison}>
+              <div className={styles.yourRating}>
+                <span className={styles.ratingValue}>{userRating ?? '—'}</span>
+                <span className={styles.ratingLabel}>You</span>
+              </div>
+              <span className={styles.ratingVs}>vs</span>
+              <div className={styles.steamRating}>
+                <span
+                  className={styles.ratingValue}
+                  style={rating ? { color: getRatingColor(rating.score) } : undefined}
+                >
+                  {rating ? `${rating.score}%` : '—'}
+                </span>
+                <span className={styles.ratingLabel}>Steam</span>
+              </div>
+            </div>
+            <input
+              id="user-rating"
+              type="range"
+              min="0"
+              max="100"
+              value={userRating ?? 0}
+              aria-label="Your personal rating"
+              aria-valuetext={`${userRating ?? 0} out of 100`}
+              onChange={(e) => {
+                handleRatingChange(parseInt(e.target.value, 10));
+              }}
+              className={styles.ratingSlider}
+            />
+            <div className={styles.ratingRange}>
+              <span>0</span>
+              <span>100</span>
+            </div>
+          </div>
 
           <div className={styles.modalNotes}>
             <label htmlFor="game-notes">Your Notes</label>
