@@ -8,6 +8,7 @@ Backlog Hero is an Electron desktop app for browsing your Steam library with not
 src/
 ├── main/                  # Electron main process (Node.js, CommonJS)
 │   ├── main.ts            # Window creation, IPC handlers, electron-store, auto-updater
+│   ├── updater.ts         # Channel feed + macOS unsigned self-update (bypasses Squirrel.Mac)
 │   └── preload.ts         # contextBridge API exposed to renderer (electronAPI)
 ├── renderer/              # React UI (Vite, ESM, TypeScript)
 │   ├── main.tsx           # Entry point — HashRouter + GameProvider
@@ -24,7 +25,9 @@ src/
 └── shared/                # Shared between main and renderer (pure TypeScript)
     ├── types.ts            # Shared type definitions (SteamGame, GameRating, etc.)
     ├── gameUtils.ts        # Pure filter/sort/format utilities
-    └── gameUtils.test.ts   # 18 unit tests for gameUtils
+    ├── gameUtils.test.ts   # 18 unit tests for gameUtils
+    ├── updaterUtils.ts     # Pure update feed + .app bundle path helpers
+    └── updaterUtils.test.ts # Unit tests for updaterUtils
 ```
 
 ## Key Patterns
@@ -35,7 +38,7 @@ src/
 - **GameContext** holds all game state; pages/components consume via `useGameContext()`
 - **electron-store** persists all data locally (games, ratings, notes, statuses, achievements, filter prefs)
 - **IPC** is request/response via `ipcMain.handle` / `ipcRenderer.invoke` plus progress events for batch fetches
-- **electron-updater** checks GitHub Releases for updates every 4 hours in production builds
+- **electron-updater** checks GitHub Releases for updates every 4 hours in production builds. The app is unsigned, so macOS bypasses Squirrel.Mac: `src/main/updater.ts` sets `autoInstallOnAppQuit = false`, downloads the zip, and `installUpdate()` swaps the `.app` bundle via a detached helper and relaunches. Pure feed/path helpers live in `src/shared/updaterUtils.ts` (unit tested). A **Use beta updates** toggle switches between the stable GitHub feed and the rolling `beta` release tag built from `develop`.
 
 ## Scripts
 

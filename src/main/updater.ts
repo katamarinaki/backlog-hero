@@ -6,6 +6,8 @@ import * as path from 'path';
 import { autoUpdater } from 'electron-updater';
 import { app, BrowserWindow } from 'electron';
 
+import { getUpdateFeed, deriveAppBundlePath } from '../shared/updaterUtils';
+
 import { store } from './store';
 
 const GITHUB_OWNER = 'katamarinaki';
@@ -17,17 +19,7 @@ let downloadedZipPath: string | null = null;
 let downloadedVersion: string | null = null;
 
 function getFeedURL(useBeta: boolean) {
-  if (useBeta) {
-    return {
-      provider: 'generic' as const,
-      url: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases/download/beta/`,
-    };
-  }
-  return {
-    provider: 'github' as const,
-    owner: GITHUB_OWNER,
-    repo: GITHUB_REPO,
-  };
+  return getUpdateFeed(GITHUB_OWNER, GITHUB_REPO, useBeta);
 }
 
 function broadcast(channel: string, data: unknown) {
@@ -154,9 +146,7 @@ export function installUpdate(): boolean {
   // Derive the installed .app bundle path from the executable path, e.g.
   // /Applications/Backlog Hero.app/Contents/MacOS/Backlog Hero -> /Applications/Backlog Hero.app
   const exePath = app.getPath('exe');
-  const appExtIndex = exePath.indexOf('.app/');
-  const installedAppPath =
-    appExtIndex !== -1 ? exePath.slice(0, appExtIndex + 4) : path.dirname(exePath);
+  const installedAppPath = deriveAppBundlePath(exePath) ?? path.dirname(exePath);
 
   // Helper script: wait for us to quit, replace the bundle, relaunch.
   const script = `#!/bin/bash
