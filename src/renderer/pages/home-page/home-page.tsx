@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { GameCardModal } from 'components/game-card-modal';
+import { LogModal } from 'components/log-modal';
 import { useGameContext } from 'context/game-context';
-import type { StatusFilter } from 'types';
+import type { StatusFilter, SteamGame } from 'types';
 
 import { formatPlaytime } from '../../../shared/gameUtils';
 
@@ -30,6 +32,8 @@ export const HomePage = () => {
     error,
     clearError,
   } = useGameContext();
+
+  const [logGame, setLogGame] = useState<SteamGame | null>(null);
 
   const totalGamesCount = games.length;
 
@@ -182,6 +186,17 @@ export const HomePage = () => {
                     <div className={styles.noImage}>No Image</div>
                   )}
                 </div>
+                <button
+                  className={styles.addLogBtn}
+                  type="button"
+                  title="Log a session"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLogGame(game);
+                  }}
+                >
+                  +
+                </button>
                 <div className={styles.gameInfo}>
                   <h3 className={styles.gameTitle}>
                     {game.name}
@@ -216,6 +231,7 @@ export const HomePage = () => {
       )}
 
       {selectedGame && <GameCardModal game={selectedGame} onClose={() => setSelectedGame(null)} />}
+      {logGame && <LogModal game={logGame} onClose={() => setLogGame(null)} />}
     </div>
   );
 };
