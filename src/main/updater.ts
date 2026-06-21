@@ -32,13 +32,13 @@ function log(msg: string) {
   broadcast('updater-log', line);
 }
 
-export function initAutoUpdater(broadcastEvents = true): void {
+export function initAutoUpdater(): void {
   if (!app.isPackaged) {
     log('Skipping auto-updater — app is not packaged (development mode)');
     return;
   }
 
-  // Force stable-only updates (GitHub release page must not be a prerelease)
+  // Force stable-only updates on startup (toggling beta overrides)
   autoUpdater.allowPrerelease = false;
   autoUpdater.allowDowngrade = false;
 
@@ -50,35 +50,29 @@ export function initAutoUpdater(broadcastEvents = true): void {
 
   autoUpdater.setFeedURL(feed);
 
-  if (broadcastEvents) {
-    autoUpdater.on('checking-for-update', () => {
-      log('Checking for update...');
-    });
-
-    autoUpdater.on('update-available', (info) => {
-      log(`Update available: v${info.version}`);
-      broadcast('updater-status', { type: 'available', version: info.version });
-    });
-
-    autoUpdater.on('update-not-available', (info) => {
-      log(`No update available (current: ${info.version})`);
-      broadcast('updater-status', { type: 'not-available', version: info.version });
-    });
-
-    autoUpdater.on('download-progress', (progress) => {
-      broadcast('updater-status', { type: 'downloading', percent: Math.round(progress.percent) });
-    });
-
-    autoUpdater.on('update-downloaded', (info) => {
-      log(`Update downloaded: v${info.version} — will install on quit`);
-      broadcast('updater-status', { type: 'downloaded', version: info.version });
-    });
-
-    autoUpdater.on('error', (error) => {
-      log(`Error: ${error.message}`);
-      broadcast('updater-status', { type: 'error', message: error.message });
-    });
-  }
+  // Register broadcast listeners once — these persist across toggleBetaFeed calls
+  autoUpdater.on('checking-for-update', () => {
+    log('Checking for update...');
+  });
+  autoUpdater.on('update-available', (info) => {
+    log(`Update available: v${info.version}`);
+    broadcast('updater-status', { type: 'available', version: info.version });
+  });
+  autoUpdater.on('update-not-available', (info) => {
+    log(`No update available (current: ${info.version})`);
+    broadcast('updater-status', { type: 'not-available', version: info.version });
+  });
+  autoUpdater.on('download-progress', (progress) => {
+    broadcast('updater-status', { type: 'downloading', percent: Math.round(progress.percent) });
+  });
+  autoUpdater.on('update-downloaded', (info) => {
+    log(`Update downloaded: v${info.version} — will install on quit`);
+    broadcast('updater-status', { type: 'downloaded', version: info.version });
+  });
+  autoUpdater.on('error', (error) => {
+    log(`Error: ${error.message}`);
+    broadcast('updater-status', { type: 'error', message: error.message });
+  });
 
   autoUpdater.checkForUpdatesAndNotify().catch((error) => {
     log(`checkForUpdatesAndNotify() rejected: ${error.message}`);
