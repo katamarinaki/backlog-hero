@@ -30,7 +30,6 @@ export const GameCardModal = ({ game, onClose }: Props) => {
     gameStatus?.status ?? null,
   );
   const [completedDate, setCompletedDate] = useState(gameStatus?.completedDate ?? '');
-  const [isEndless, setIsEndless] = useState(gameStatus?.isEndless ?? false);
   const [userRating, setUserRating] = useState<number | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -114,60 +113,18 @@ export const GameCardModal = ({ game, onClose }: Props) => {
 
   const handleStatusChange = async (newStatus: GameStatusType | null) => {
     setSelectedStatus(newStatus);
-
     if (newStatus === null) {
       setCompletedDate('');
-      if (isEndless) {
-        // Keep endless flag but clear status
-        await saveStatus({
-          isEndless: true,
-        });
-      } else {
-        await saveStatus(null);
-      }
+      await saveStatus(null);
     } else {
       const statusObj: GameStatus = {
         status: newStatus,
         statusDate: new Date().toISOString(),
-        isEndless: isEndless || undefined,
       };
-
       if (newStatus === 'completed' && completedDate) {
         statusObj.completedDate = completedDate;
       }
-
       await saveStatus(statusObj);
-    }
-  };
-
-  const handleEndlessToggle = async () => {
-    const newIsEndless = !isEndless;
-    setIsEndless(newIsEndless);
-
-    // If marking as endless and currently completed, clear the status
-    if (newIsEndless && selectedStatus === 'completed') {
-      setSelectedStatus(null);
-      setCompletedDate('');
-      await saveStatus({
-        isEndless: true,
-      });
-    } else if (newIsEndless) {
-      // Just mark as endless, keep current status (or no status)
-      await saveStatus({
-        status: selectedStatus || undefined,
-        statusDate: selectedStatus ? new Date().toISOString() : undefined,
-        isEndless: true,
-      });
-    } else if (!newIsEndless && !selectedStatus) {
-      // Unmarking endless with no status - clear everything
-      await saveStatus(null);
-    } else {
-      // Unmarking endless but has a status - keep the status
-      await saveStatus({
-        status: selectedStatus!,
-        statusDate: new Date().toISOString(),
-        completedDate: selectedStatus === 'completed' ? completedDate || undefined : undefined,
-      });
     }
   };
 
@@ -184,10 +141,10 @@ export const GameCardModal = ({ game, onClose }: Props) => {
 
   const getStatusLabel = (status: GameStatusType): string => {
     const labels: Record<GameStatusType, string> = {
-      completed: 'Completed',
-      in_progress: 'In Progress',
-      dropped: 'Dropped',
       backlog: 'Backlog',
+      completed: 'Completed',
+      retired: 'Retired',
+      dropped: 'Dropped',
     };
     return labels[status];
   };
@@ -222,10 +179,10 @@ export const GameCardModal = ({ game, onClose }: Props) => {
 
   const getStatusPillClass = (status: GameStatusType) => {
     const statusMap: Record<GameStatusType, string> = {
-      completed: styles.statusCompleted,
-      in_progress: styles.statusInProgress,
-      dropped: styles.statusDropped,
       backlog: styles.statusBacklog,
+      completed: styles.statusCompleted,
+      retired: styles.statusRetired,
+      dropped: styles.statusDropped,
     };
     return statusMap[status];
   };
@@ -253,21 +210,16 @@ export const GameCardModal = ({ game, onClose }: Props) => {
           <div className={styles.statusSection}>
             <label className={styles.sectionLabel}>Game Status</label>
             <div className={styles.statusPills}>
-              {(['backlog', 'in_progress', 'completed', 'dropped'] as const).map((status) => {
-                const isDisabled = status === 'completed' && isEndless;
-                return (
-                  <button
-                    key={status}
-                    className={`${styles.statusPill} ${selectedStatus === status ? `${styles.statusPillActive} ${getStatusPillClass(status)}` : ''} ${isDisabled ? styles.statusPillDisabled : ''}`}
-                    onClick={() => !isDisabled && handleStatusChange(status)}
-                    type="button"
-                    disabled={isDisabled}
-                    title={isDisabled ? 'Endless games cannot be completed' : undefined}
-                  >
-                    {getStatusLabel(status)}
-                  </button>
-                );
-              })}
+              {(['backlog', 'completed', 'retired', 'dropped'] as const).map((status) => (
+                <button
+                  key={status}
+                  className={`${styles.statusPill} ${selectedStatus === status ? `${styles.statusPillActive} ${getStatusPillClass(status)}` : ''}`}
+                  onClick={() => handleStatusChange(status)}
+                  type="button"
+                >
+                  {getStatusLabel(status)}
+                </button>
+              ))}
               <button
                 className={`${styles.statusPill} ${selectedStatus === null ? `${styles.statusPillActive} ${styles.statusNone}` : ''}`}
                 onClick={() => handleStatusChange(null)}
@@ -276,15 +228,7 @@ export const GameCardModal = ({ game, onClose }: Props) => {
                 Clear
               </button>
             </div>
-            <div className={styles.endlessToggle}>
-              <label className={styles.endlessCheckbox}>
-                <input type="checkbox" checked={isEndless} onChange={handleEndlessToggle} />
-                <span className={styles.checkboxLabel}>
-                  Endless game (no campaign/story to complete)
-                </span>
-              </label>
-            </div>
-            {selectedStatus === 'completed' && !isEndless && (
+            {selectedStatus === 'completed' && (
               <div className={styles.completionDate}>
                 <label htmlFor="completed-date">Completion date (optional)</label>
                 <input

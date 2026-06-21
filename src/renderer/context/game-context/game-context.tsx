@@ -303,22 +303,27 @@ export const GameProvider = ({ children }: GameProviderProps) => {
 
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = {
-      completed: 0,
-      in_progress: 0,
-      dropped: 0,
       backlog: 0,
-      endless: 0,
+      in_progress: 0,
+      completed: 0,
+      retired: 0,
+      dropped: 0,
     };
     Object.values(statuses).forEach((s) => {
-      if (s.isEndless) {
-        counts.endless++;
-      }
-      if (s.status && s.status in counts) {
-        counts[s.status]++;
-      }
+      if (s.status && s.status in counts) counts[s.status]++;
     });
+    // in_progress is derived: has sessions, no terminal status
+    counts.in_progress = games.filter((g) => {
+      const s = statuses[g.appid]?.status;
+      return (
+        (sessions[g.appid]?.length ?? 0) > 0 &&
+        s !== 'completed' &&
+        s !== 'retired' &&
+        s !== 'dropped'
+      );
+    }).length;
     return counts;
-  }, [statuses]);
+  }, [statuses, sessions, games]);
 
   const filteredAndSortedGames = useMemo(() => {
     let result = [...games];
@@ -330,9 +335,19 @@ export const GameProvider = ({ children }: GameProviderProps) => {
 
     if (statusFilter !== 'all') {
       if (statusFilter === 'untracked') {
-        result = result.filter((game) => !statuses[game.appid]);
-      } else if (statusFilter === 'endless') {
-        result = result.filter((game) => statuses[game.appid]?.isEndless);
+        result = result.filter(
+          (game) => !statuses[game.appid]?.status && !sessions[game.appid]?.length,
+        );
+      } else if (statusFilter === 'in_progress') {
+        result = result.filter((game) => {
+          const s = statuses[game.appid]?.status;
+          return (
+            (sessions[game.appid]?.length ?? 0) > 0 &&
+            s !== 'completed' &&
+            s !== 'retired' &&
+            s !== 'dropped'
+          );
+        });
       } else {
         result = result.filter((game) => statuses[game.appid]?.status === statusFilter);
       }
@@ -376,7 +391,7 @@ export const GameProvider = ({ children }: GameProviderProps) => {
     });
 
     return result;
-  }, [games, ratings, statuses, searchQuery, sortBy, sortAsc, statusFilter]);
+  }, [games, ratings, statuses, sessions, searchQuery, sortBy, sortAsc, statusFilter]);
 
   const value: GameContextValue = {
     games,

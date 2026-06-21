@@ -27,23 +27,22 @@ export interface GameCompletion {
   completedDate?: string; // ISO date string
 }
 
-export type GameStatusType = 'completed' | 'in_progress' | 'dropped' | 'backlog';
+export type GameStatusType = 'backlog' | 'completed' | 'retired' | 'dropped';
 
 export interface GameStatus {
-  status?: GameStatusType; // Optional - endless games may have no status
-  statusDate?: string; // When status was last changed
-  completedDate?: string; // Specific to 'completed' status
-  isEndless?: boolean; // Games without campaigns that can't be completed
+  status?: GameStatusType;
+  statusDate?: string;
+  completedDate?: string;
 }
 
 export type StatusFilter =
   | 'all'
-  | 'completed'
-  | 'in_progress'
-  | 'dropped'
   | 'backlog'
-  | 'untracked'
-  | 'endless';
+  | 'completed'
+  | 'retired'
+  | 'dropped'
+  | 'in_progress'
+  | 'untracked';
 
 export interface GameAchievements {
   achieved: number;

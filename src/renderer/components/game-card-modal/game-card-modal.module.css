@@ -108,16 +108,22 @@
   color: var(--text-primary);
 }
 
+.statusPillActive.statusBacklog {
+  background-color: var(--status-backlog);
+  border-color: var(--status-backlog);
+  color: var(--bg-primary);
+}
+
 .statusPillActive.statusCompleted {
   background-color: var(--status-completed);
   border-color: var(--status-completed);
   color: white;
 }
 
-.statusPillActive.statusInProgress {
-  background-color: var(--status-in-progress);
-  border-color: var(--status-in-progress);
-  color: var(--bg-primary);
+.statusPillActive.statusRetired {
+  background-color: var(--status-retired);
+  border-color: var(--status-retired);
+  color: white;
 }
 
 .statusPillActive.statusDropped {
@@ -126,55 +132,9 @@
   color: white;
 }
 
-.statusPillActive.statusBacklog {
-  background-color: var(--status-backlog);
-  border-color: var(--status-backlog);
-  color: var(--bg-primary);
-}
-
 .statusPillActive.statusNone {
   background-color: var(--bg-primary);
   border-color: var(--text-secondary);
-  color: var(--text-primary);
-}
-
-.statusPillDisabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.statusPillDisabled:hover {
-  border-color: var(--border);
-  color: var(--text-secondary);
-}
-
-/* Endless Toggle */
-.endlessToggle {
-  margin-top: 1rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--border);
-}
-
-.endlessCheckbox {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  cursor: pointer;
-}
-
-.endlessCheckbox input[type='checkbox'] {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-  accent-color: var(--status-endless);
-}
-
-.checkboxLabel {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-}
-
-.endlessCheckbox:hover .checkboxLabel {
   color: var(--text-primary);
 }
 

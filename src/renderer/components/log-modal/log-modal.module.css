@@ -198,10 +198,10 @@
   color: #1b2838;
 }
 
-.statusPillActive.in_progress {
-  background-color: var(--status-in-progress);
-  border-color: var(--status-in-progress);
-  color: #1b2838;
+.statusPillActive.retired {
+  background-color: var(--status-retired);
+  border-color: var(--status-retired);
+  color: white;
 }
 
 .statusPillActive.completed {

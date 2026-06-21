@@ -13,11 +13,11 @@ type Props = {
   onClose: () => void;
 };
 
-const STATUS_OPTIONS: GameStatusType[] = ['backlog', 'in_progress', 'completed', 'dropped'];
+const STATUS_OPTIONS: GameStatusType[] = ['backlog', 'completed', 'retired', 'dropped'];
 const STATUS_LABELS: Record<GameStatusType, string> = {
   backlog: 'Backlog',
-  in_progress: 'In Progress',
   completed: 'Completed',
+  retired: 'Retired',
   dropped: 'Dropped',
 };
 
@@ -108,13 +108,12 @@ export const LogModal = ({ game, onClose }: Props) => {
   const handleStatus = async (status: GameStatusType) => {
     const next = currentStatus === status ? null : status;
     if (next === null) {
-      await saveStatus(statuses[game.appid]?.isEndless ? { isEndless: true } : null);
+      await saveStatus(null);
       return;
     }
     await saveStatus({
       status: next,
       statusDate: new Date().toISOString(),
-      isEndless: statuses[game.appid]?.isEndless || undefined,
       completedDate: next === 'completed' ? date : undefined,
     });
   };

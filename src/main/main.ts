@@ -442,12 +442,12 @@ function sanitizeFilterPreferences(value: unknown): FilterPreferences | null {
 
   const statusFilterValues = [
     'all',
-    'completed',
-    'in_progress',
-    'dropped',
     'backlog',
+    'completed',
+    'retired',
+    'dropped',
+    'in_progress',
     'untracked',
-    'endless',
   ] as const;
   const sortByValues = ['playtime', 'name', 'rating', 'last_played', 'status_date'] as const;
 

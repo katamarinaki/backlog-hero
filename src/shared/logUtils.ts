@@ -105,7 +105,7 @@ export function getLogEntries(
   const appids = new Set<number>();
 
   for (const [id, status] of Object.entries(statuses)) {
-    if (status && (status.status || status.isEndless)) appids.add(Number(id));
+    if (status?.status) appids.add(Number(id));
   }
   for (const [id, note] of Object.entries(notes)) {
     if (note && note.trim()) appids.add(Number(id));

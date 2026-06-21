@@ -136,10 +136,10 @@ describe('getLogDate', () => {
 });
 
 describe('getLogEntries', () => {
-  it('includes games with a tracked status, endless flag, or a note', () => {
+  it('includes games with a tracked status or a note', () => {
     const statuses: Record<number, GameStatus | undefined> = {
       1: { status: 'completed', completedDate: '2024-03-01' },
-      2: { isEndless: true },
+      2: { status: 'retired' },
       4: undefined,
     };
     const notes = { 3: 'great game', 5: '   ' };
