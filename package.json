@@ -71,10 +71,12 @@
     },
     "mac": {
       "target": [
-        "dmg"
+        "dmg",
+        "zip"
       ],
       "artifactName": "Backlog-Hero-${version}.${ext}",
       "category": "public.app-category.games",
+      "hardenedRuntime": false,
       "gatekeeperAssess": false
     },
     "win": {
@@ -95,7 +97,8 @@
         "owner": "katamarinaki",
         "repo": "backlog-hero"
       }
-    ]
+    ],
+    "afterPack": "./scripts/after-pack.js"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
