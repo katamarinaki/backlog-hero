@@ -69,7 +69,10 @@ export function initAutoUpdater(): void {
   autoUpdater.on('download-progress', (progress) => {
     broadcast('updater-status', { type: 'downloading', percent: Math.round(progress.percent) });
   });
+  let downloadedFile: string | null = null;
+
   autoUpdater.on('update-downloaded', (info) => {
+    downloadedFile = info.downloadedFile;
     log(`Update downloaded: v${info.version} — will install on quit`);
     broadcast('updater-status', { type: 'downloaded', version: info.version });
   });
@@ -78,23 +81,29 @@ export function initAutoUpdater(): void {
     broadcast('updater-status', { type: 'error', message: error.message });
 
     // macOS unsigned apps: Squirrel.Mac signature validation fails.
-    // update-downloaded never fires (validation fails before it), so find
-    // the downloaded file in the updater cache.
+    // Try event path first, then fall back to cache.
     if (process.platform === 'darwin' && error.message?.includes('did not pass validation')) {
-      const pendingDir = path.join(
-        path.dirname(app.getPath('userData')),
-        'backlog-hero-updater',
-        'pending',
-      );
-      try {
-        const files = readdirSync(pendingDir).filter((f: string) => f.endsWith('.zip'));
-        if (files.length > 0) {
-          const zipPath = path.join(pendingDir, files[0]);
-          log('Signature validation failed — installing update manually');
-          manualInstall(zipPath);
+      let zipPath: string | null = downloadedFile;
+
+      if (!zipPath) {
+        const pendingDir = path.join(
+          path.dirname(app.getPath('userData')),
+          'backlog-hero-updater',
+          'pending',
+        );
+        try {
+          const files = readdirSync(pendingDir).filter((f: string) => f.endsWith('.zip'));
+          if (files.length > 0) zipPath = path.join(pendingDir, files[0]);
+        } catch {
+          // ignore
         }
-      } catch {
-        log('Could not find downloaded update in cache');
+      }
+
+      if (zipPath) {
+        log('Signature validation failed — installing update manually');
+        manualInstall(zipPath);
+      } else {
+        log('Could not find downloaded update (event path + cache both empty)');
       }
     }
   });
