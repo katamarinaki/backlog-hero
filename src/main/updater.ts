@@ -1,4 +1,5 @@
 import { exec } from 'child_process';
+import { readdirSync } from 'fs';
 import * as path from 'path';
 
 import { autoUpdater } from 'electron-updater';
@@ -68,10 +69,7 @@ export function initAutoUpdater(): void {
   autoUpdater.on('download-progress', (progress) => {
     broadcast('updater-status', { type: 'downloading', percent: Math.round(progress.percent) });
   });
-  let downloadedFile: string | null = null;
-
   autoUpdater.on('update-downloaded', (info) => {
-    downloadedFile = info.downloadedFile;
     log(`Update downloaded: v${info.version} — will install on quit`);
     broadcast('updater-status', { type: 'downloaded', version: info.version });
   });
@@ -80,14 +78,24 @@ export function initAutoUpdater(): void {
     broadcast('updater-status', { type: 'error', message: error.message });
 
     // macOS unsigned apps: Squirrel.Mac signature validation fails.
-    // Fall back to manual unzip + replace of the .app bundle.
-    if (
-      process.platform === 'darwin' &&
-      downloadedFile &&
-      error.message?.includes('did not pass validation')
-    ) {
-      log('Signature validation failed — installing update manually');
-      manualInstall(downloadedFile);
+    // update-downloaded never fires (validation fails before it), so find
+    // the downloaded file in the updater cache.
+    if (process.platform === 'darwin' && error.message?.includes('did not pass validation')) {
+      const pendingDir = path.join(
+        path.dirname(app.getPath('userData')),
+        'backlog-hero-updater',
+        'pending',
+      );
+      try {
+        const files = readdirSync(pendingDir).filter((f: string) => f.endsWith('.zip'));
+        if (files.length > 0) {
+          const zipPath = path.join(pendingDir, files[0]);
+          log('Signature validation failed — installing update manually');
+          manualInstall(zipPath);
+        }
+      } catch {
+        log('Could not find downloaded update in cache');
+      }
     }
   });
 
