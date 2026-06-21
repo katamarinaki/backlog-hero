@@ -81,6 +81,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getGames: (): Promise<SteamGame[]> => ipcRenderer.invoke('get-games'),
   fetchRatings: (appids: number[]): Promise<Record<number, GameRating>> =>
     ipcRenderer.invoke('fetch-ratings', appids),
+  fetchRating: (appid: number): Promise<GameRating | null> =>
+    ipcRenderer.invoke('fetch-rating', appid),
   getRatings: (): Promise<Record<number, GameRating>> => ipcRenderer.invoke('get-ratings'),
   getNotes: (): Promise<Record<number, string>> => ipcRenderer.invoke('get-notes'),
   saveNote: (appid: number, note: string): Promise<boolean> =>
@@ -96,6 +98,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('get-achievements'),
   fetchAchievements: (appids: number[]): Promise<Record<number, GameAchievements>> =>
     ipcRenderer.invoke('fetch-achievements', appids),
+  fetchAchievement: (appid: number): Promise<GameAchievements | null> =>
+    ipcRenderer.invoke('fetch-achievement', appid),
+  getRatingTimestamp: (appid: number): Promise<number | null> =>
+    ipcRenderer.invoke('get-rating-timestamp', appid),
+  getAchievementTimestamp: (appid: number): Promise<number | null> =>
+    ipcRenderer.invoke('get-achievement-timestamp', appid),
   getFilterPreferences: (): Promise<FilterPreferences> =>
     ipcRenderer.invoke('get-filter-preferences'),
   saveFilterPreferences: (preferences: FilterPreferences): Promise<boolean> =>

@@ -69,6 +69,7 @@ export interface ElectronAPI {
   fetchGames: () => Promise<SteamGame[]>;
   getGames: () => Promise<SteamGame[]>;
   fetchRatings: (appids: number[]) => Promise<Record<number, GameRating>>;
+  fetchRating: (appid: number) => Promise<GameRating | null>;
   getRatings: () => Promise<Record<number, GameRating>>;
   getNotes: () => Promise<Record<number, string>>;
   saveNote: (appid: number, note: string) => Promise<boolean>;
@@ -78,6 +79,9 @@ export interface ElectronAPI {
   saveStatus: (appid: number, status: GameStatus | null) => Promise<boolean>;
   getAchievements: () => Promise<Record<number, GameAchievements>>;
   fetchAchievements: (appids: number[]) => Promise<Record<number, GameAchievements>>;
+  fetchAchievement: (appid: number) => Promise<GameAchievements | null>;
+  getRatingTimestamp: (appid: number) => Promise<number | null>;
+  getAchievementTimestamp: (appid: number) => Promise<number | null>;
   getFilterPreferences: () => Promise<FilterPreferences>;
   saveFilterPreferences: (preferences: FilterPreferences) => Promise<boolean>;
   exportData: () => Promise<boolean>;

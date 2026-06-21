@@ -52,10 +52,12 @@ interface StoreSchema {
   steamId: string;
   games: SteamGame[];
   ratings: Record<number, GameRating>;
+  ratingTimestamps: Record<number, number>;
   notes: Record<number, string>;
   completions: Record<number, GameCompletion>;
   statuses: Record<number, GameStatus>;
   achievements: Record<number, GameAchievements>;
+  achievementTimestamps: Record<number, number>;
   filterPreferences: FilterPreferences;
   useBetaUpdates: boolean;
 }
@@ -75,10 +77,12 @@ const defaultStoreData: StoreSchema = {
   steamId: '',
   games: [],
   ratings: {},
+  ratingTimestamps: {},
   notes: {},
   completions: {},
   statuses: {},
   achievements: {},
+  achievementTimestamps: {},
   filterPreferences: {
     statusFilter: 'all',
     sortBy: 'playtime',
@@ -357,6 +361,24 @@ ipcMain.handle('fetch-ratings', async (event, appids: number[]) => {
   return newRatings;
 });
 
+// Fetch rating for a single game
+ipcMain.handle('fetch-rating', async (_, appid: number) => {
+  const cached = store.get('ratings') || {};
+  if (cached[appid]) return cached[appid];
+
+  const rating = await fetchGameRating(appid);
+  if (rating) {
+    const ratings = store.get('ratings') || {};
+    ratings[appid] = rating;
+    store.set('ratings', ratings);
+
+    const timestamps = store.get('ratingTimestamps') || {};
+    timestamps[appid] = Date.now();
+    store.set('ratingTimestamps', timestamps);
+  }
+  return rating;
+});
+
 // IPC Handler for getting cached ratings
 ipcMain.handle('get-ratings', () => {
   return store.get('ratings') || {};
@@ -494,9 +516,45 @@ ipcMain.handle('fetch-achievements', async (event, appids: number[]) => {
   return newAchievements;
 });
 
+// Fetch achievements for a single game
+ipcMain.handle('fetch-achievement', async (_, appid: number) => {
+  const apiKey = store.get('apiKey');
+  const steamId = store.get('steamId');
+
+  if (!apiKey || !steamId) {
+    throw new Error('API key and Steam ID are required');
+  }
+
+  const cached = store.get('achievements') || {};
+  if (cached[appid]) return cached[appid];
+
+  const achievement = await fetchGameAchievements(appid, apiKey, steamId);
+  if (achievement) {
+    const achievements = store.get('achievements') || {};
+    achievements[appid] = achievement;
+    store.set('achievements', achievements);
+
+    const timestamps = store.get('achievementTimestamps') || {};
+    timestamps[appid] = Date.now();
+    store.set('achievementTimestamps', timestamps);
+  }
+  return achievement;
+});
+
 // IPC Handler for getting cached achievements
 ipcMain.handle('get-achievements', () => {
   return store.get('achievements') || {};
+});
+
+// IPC Handlers for per-game timestamps
+ipcMain.handle('get-rating-timestamp', (_, appid: number) => {
+  const timestamps = store.get('ratingTimestamps') || {};
+  return timestamps[appid] || null;
+});
+
+ipcMain.handle('get-achievement-timestamp', (_, appid: number) => {
+  const timestamps = store.get('achievementTimestamps') || {};
+  return timestamps[appid] || null;
 });
 
 // IPC Handlers for filter preferences
@@ -577,10 +635,12 @@ function getBackupData(): StoreSchema {
     steamId: store.get('steamId'),
     games: store.get('games'),
     ratings: store.get('ratings'),
+    ratingTimestamps: store.get('ratingTimestamps'),
     notes: store.get('notes'),
     completions: store.get('completions'),
     statuses: store.get('statuses'),
     achievements: store.get('achievements'),
+    achievementTimestamps: store.get('achievementTimestamps'),
     filterPreferences: store.get('filterPreferences'),
     useBetaUpdates: store.get('useBetaUpdates', false),
   };
