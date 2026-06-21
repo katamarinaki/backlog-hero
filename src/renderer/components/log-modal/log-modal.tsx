@@ -269,7 +269,9 @@ export const LogModal = ({ game, onClose }: Props) => {
 
           {/* Status */}
           <section className={styles.field}>
-            <label className={styles.fieldLabel}>Status</label>
+            <label className={styles.fieldLabel}>
+              Status <span className={styles.optional}>(optional)</span>
+            </label>
             <div className={styles.statusPills}>
               {STATUS_OPTIONS.map((status) => (
                 <button
