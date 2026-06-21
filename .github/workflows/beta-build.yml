@@ -80,7 +80,6 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           allowUpdates: true
-          replacesArtifacts: true
           draft: false
           prerelease: true
           generateReleaseNotes: true
