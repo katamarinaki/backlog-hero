@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 import type { SteamGame, GameStatus, GameStatusType } from 'types';
 import { useGameContext } from 'context/game-context';
@@ -32,6 +32,15 @@ export const GameCardModal = ({ game, onClose }: Props) => {
   const [completedDate, setCompletedDate] = useState(gameStatus?.completedDate ?? '');
   const [isEndless, setIsEndless] = useState(gameStatus?.isEndless ?? false);
   const [userRating, setUserRating] = useState<number | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleRatingChange = (val: number) => {
+    setUserRating(val);
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      window.electronAPI.saveUserRating(game.appid, val);
+    }, 400);
+  };
 
   useEffect(() => {
     window.electronAPI.getUserRatings().then((ur) => {
@@ -386,9 +395,7 @@ export const GameCardModal = ({ game, onClose }: Props) => {
               max="100"
               value={userRating ?? 0}
               onChange={(e) => {
-                const val = parseInt(e.target.value, 10);
-                setUserRating(val);
-                window.electronAPI.saveUserRating(game.appid, val);
+                handleRatingChange(parseInt(e.target.value, 10));
               }}
               className={styles.ratingSlider}
             />
