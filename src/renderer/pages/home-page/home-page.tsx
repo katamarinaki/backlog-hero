@@ -27,6 +27,8 @@ export const HomePage = () => {
     selectedGame,
     setSelectedGame,
     filteredAndSortedGames,
+    error,
+    clearError,
   } = useGameContext();
 
   const totalGamesCount = useMemo(() => {
@@ -75,6 +77,14 @@ export const HomePage = () => {
 
   return (
     <div className={styles.homePage}>
+      {error && (
+        <div className={styles.errorBanner}>
+          <span>{error}</span>
+          <button onClick={clearError} className={styles.errorDismiss} aria-label="Dismiss error">
+            ✕
+          </button>
+        </div>
+      )}
       <div className={styles.pageHeader}>
         <h1>Your Library</h1>
         <span className={styles.gameCount}>
