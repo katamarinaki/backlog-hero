@@ -74,7 +74,8 @@
         "dmg"
       ],
       "artifactName": "Backlog-Hero-${version}.${ext}",
-      "category": "public.app-category.games"
+      "category": "public.app-category.games",
+      "gatekeeperAssess": false
     },
     "win": {
       "target": [
