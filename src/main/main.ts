@@ -31,6 +31,13 @@ app.setAboutPanelOptions({
   credits: 'Backlog Hero',
 });
 
+const ALLOWED_EXTERNAL_HOSTS = [
+  'store.steampowered.com',
+  'steamcommunity.com',
+  'github.com',
+  'steamid.io',
+];
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -47,18 +54,13 @@ function createWindow() {
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//i.test(url)) {
       try {
-        const parsed = new URL(url);
-        // Only allow steam/steampowered/github domains
-        if (
-          parsed.hostname === 'store.steampowered.com' ||
-          parsed.hostname === 'steamcommunity.com' ||
-          parsed.hostname === 'github.com' ||
-          parsed.hostname === 'steamid.io'
-        ) {
+        if (ALLOWED_EXTERNAL_HOSTS.includes(new URL(url).hostname)) {
           shell.openExternal(url);
+        } else {
+          console.log('Blocked external link (host not in allowlist):', url);
         }
       } catch {
-        // Malformed URL — deny
+        console.log('Blocked external link (malformed URL):', url);
       }
     }
     return { action: 'deny' };
@@ -122,9 +124,13 @@ ipcMain.handle('save-settings', (_, settings: unknown) => {
   ) {
     throw new Error('Invalid settings: apiKey and steamId must be strings');
   }
-  const s = settings as { apiKey: string; steamId: string };
-  store.set('apiKey', s.apiKey);
-  store.set('steamId', s.steamId);
+  const apiKey = (settings as { apiKey: string }).apiKey.trim();
+  const steamId = (settings as { steamId: string }).steamId.trim();
+  if (!apiKey || !steamId) {
+    throw new Error('API key and Steam ID must not be empty');
+  }
+  store.set('apiKey', apiKey);
+  store.set('steamId', steamId);
   return true;
 });
 
