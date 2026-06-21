@@ -8,5 +8,3 @@ export const getGameCover = (appid: number, hash: string) => {
   if (!hash) return '';
   return `https://media.steampowered.com/steamcommunity/public/images/apps/${appid}/${hash}.jpg`;
 };
-
-

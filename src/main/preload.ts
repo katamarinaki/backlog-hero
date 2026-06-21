@@ -59,14 +59,18 @@ export interface FilterPreferences {
 
 contextBridge.exposeInMainWorld('electronAPI', {
   onRatingsProgress: (callback: (progress: { fetched: number; total: number }) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, progress: { fetched: number; total: number }) =>
-      callback(progress);
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      progress: { fetched: number; total: number },
+    ) => callback(progress);
     ipcRenderer.on('fetch-ratings-progress', handler);
     return () => ipcRenderer.removeListener('fetch-ratings-progress', handler);
   },
   onAchievementsProgress: (callback: (progress: { fetched: number; total: number }) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, progress: { fetched: number; total: number }) =>
-      callback(progress);
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      progress: { fetched: number; total: number },
+    ) => callback(progress);
     ipcRenderer.on('fetch-achievements-progress', handler);
     return () => ipcRenderer.removeListener('fetch-achievements-progress', handler);
   },
