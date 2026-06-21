@@ -56,7 +56,21 @@ jobs:
           echo "Building release $TAG ($VERSION)"
 
       - name: Build Distributables
-        run: npm run dist -- --publish=never
+        run: |
+          npm run dist -- --publish=never
+          # Strip all code signatures from macOS ZIP so Squirrel.Mac skips validation.
+          # electron-builder skips signing (no Developer ID), but the Electron
+          # framework carries its own signatures that trigger validation errors.
+          for zipfile in release/*.zip; do
+            [ -f "$zipfile" ] || continue
+            tmpdir="$(mktemp -d)"
+            unzip -q "$zipfile" -d "$tmpdir"
+            find "$tmpdir" -name _CodeSignature -type d -exec rm -rf {} + 2>/dev/null || true
+            rm -f "$zipfile"
+            ditto -c -k --sequesterRsrc --keepParent "$tmpdir"/*.app "$zipfile"
+            rm -rf "$tmpdir"
+            echo "Stripped signatures from $zipfile"
+          done
 
       - name: Collect Artifacts
         uses: actions/upload-artifact@v4
