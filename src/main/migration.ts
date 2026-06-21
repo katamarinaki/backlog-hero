@@ -1,5 +1,6 @@
 import type { GameCompletion, GameStatus } from '../shared/types';
 import { transformCompletionsToStatuses } from '../shared/migration';
+
 import type { StoreSchema } from './store';
 import { store } from './store';
 

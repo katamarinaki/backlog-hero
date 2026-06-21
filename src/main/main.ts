@@ -9,7 +9,6 @@ import type {
   GameCompletion,
   GameRating,
   GameStatus,
-  SteamGame,
 } from '../shared/types';
 
 import { store, STORE_DEFAULTS, type StoreSchema } from './store';

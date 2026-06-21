@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import { transformCompletionsToStatuses } from '../shared/migration';
 import type { GameCompletion, GameStatus } from '../shared/types';
 
