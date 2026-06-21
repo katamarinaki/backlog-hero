@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { transformCompletionsToStatuses } from '../shared/migration';
+import { transformCompletionsToStatuses, migrateStatusSchema } from '../shared/migration';
 import type { GameCompletion, GameStatus } from '../shared/types';
 
 describe('transformCompletionsToStatuses', () => {
@@ -78,5 +78,64 @@ describe('transformCompletionsToStatuses', () => {
     };
     const statuses: Record<number, GameStatus> = {};
     expect(transformCompletionsToStatuses(completions, statuses)).toBeNull();
+  });
+});
+
+describe('migrateStatusSchema', () => {
+  it('returns null when nothing needs changing', () => {
+    const statuses: Record<number, GameStatus> = {
+      1: { status: 'completed', completedDate: '2024-01-01' },
+      2: { status: 'dropped' },
+      3: { status: 'backlog' },
+    };
+    expect(migrateStatusSchema(statuses)).toBeNull();
+  });
+
+  it('removes in_progress status and preserves other fields', () => {
+    const statuses = {
+      1: { status: 'in_progress' as GameStatus['status'], statusDate: '2024-01-01' },
+    } as Record<number, GameStatus>;
+    const result = migrateStatusSchema(statuses);
+    expect(result).not.toBeNull();
+    // status removed, but statusDate kept
+    expect(result![1]).toEqual({ statusDate: '2024-01-01' });
+    expect((result![1] as GameStatus).status).toBeUndefined();
+  });
+
+  it('drops an entry entirely when in_progress has no other fields', () => {
+    const statuses = {
+      1: { status: 'in_progress' as GameStatus['status'] },
+    } as Record<number, GameStatus>;
+    const result = migrateStatusSchema(statuses);
+    expect(result).not.toBeNull();
+    expect(result![1]).toBeUndefined();
+  });
+
+  it('strips the isEndless flag and keeps the rest of the entry', () => {
+    const statuses = {
+      1: { status: 'backlog', isEndless: true } as GameStatus & { isEndless: boolean },
+    } as Record<number, GameStatus>;
+    const result = migrateStatusSchema(statuses);
+    expect(result).not.toBeNull();
+    expect((result![1] as GameStatus & { isEndless?: boolean }).isEndless).toBeUndefined();
+    expect(result![1].status).toBe('backlog');
+  });
+
+  it('drops an entry that only had isEndless: true with no other data', () => {
+    const statuses = {
+      1: { isEndless: true } as GameStatus & { isEndless: boolean },
+    } as Record<number, GameStatus>;
+    const result = migrateStatusSchema(statuses);
+    expect(result).not.toBeNull();
+    expect(result![1]).toBeUndefined();
+  });
+
+  it('leaves untouched entries intact', () => {
+    const statuses = {
+      1: { status: 'in_progress' as GameStatus['status'] },
+      2: { status: 'completed', completedDate: '2024-01-01' },
+    } as Record<number, GameStatus>;
+    const result = migrateStatusSchema(statuses);
+    expect(result![2]).toEqual({ status: 'completed', completedDate: '2024-01-01' });
   });
 });

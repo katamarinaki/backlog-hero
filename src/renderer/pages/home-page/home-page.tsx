@@ -1,14 +1,22 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useMemo } from 'react';
 
 import { GameCardModal } from 'components/game-card-modal';
+import { LogModal } from 'components/log-modal';
 import { useGameContext } from 'context/game-context';
-import type { StatusFilter } from 'types';
+import type { StatusFilter, SteamGame } from 'types';
 
 import { formatPlaytime } from '../../../shared/gameUtils';
 
-import styles from './home-page.module.css';
 import { getGameCover, getRatingColor } from './utils';
+import styles from './home-page.module.css';
+
+const STATUS_LABELS: Record<string, string> = {
+  backlog: 'Backlog',
+  completed: 'Completed',
+  retired: 'Retired',
+  dropped: 'Dropped',
+};
 
 export const HomePage = () => {
   const {
@@ -16,6 +24,7 @@ export const HomePage = () => {
     ratings,
     notes,
     statuses,
+    sessions,
     hasSettings,
     searchQuery,
     setSearchQuery,
@@ -31,32 +40,27 @@ export const HomePage = () => {
     clearError,
   } = useGameContext();
 
-  const totalGamesCount = useMemo(() => {
-    if (statusFilter === 'completed') {
-      return (
-        games.length - (statuses ? Object.values(statuses).filter((s) => s?.isEndless).length : 0)
-      );
-    }
-    return games.length;
-  }, [games.length, statusFilter, statuses]);
+  const [logGame, setLogGame] = useState<SteamGame | null>(null);
+
+  const totalGamesCount = games.length;
 
   const getStatusCardClass = (status?: string) => {
     if (!status) return '';
     const statusMap: Record<string, string> = {
-      completed: styles.statusCompleted,
-      in_progress: styles.statusInProgress,
-      dropped: styles.statusDropped,
       backlog: styles.statusBacklog,
+      completed: styles.statusCompleted,
+      retired: styles.statusRetired,
+      dropped: styles.statusDropped,
     };
     return statusMap[status] || '';
   };
 
   const getStatusBadgeClass = (status: string) => {
     const statusMap: Record<string, string> = {
-      completed: styles.statusBadgeCompleted,
-      in_progress: styles.statusBadgeInProgress,
-      dropped: styles.statusBadgeDropped,
       backlog: styles.statusBadgeBacklog,
+      completed: styles.statusBadgeCompleted,
+      retired: styles.statusBadgeRetired,
+      dropped: styles.statusBadgeDropped,
     };
     return statusMap[status] || '';
   };
@@ -108,11 +112,11 @@ export const HomePage = () => {
             className={styles.filterSelect}
           >
             <option value="all">All Games</option>
-            <option value="completed">Completed</option>
             <option value="in_progress">In Progress</option>
             <option value="backlog">Backlog</option>
+            <option value="completed">Completed</option>
+            <option value="retired">Retired</option>
             <option value="dropped">Dropped</option>
-            <option value="endless">Endless</option>
             <option value="untracked">Untracked</option>
           </select>
         </div>
@@ -159,7 +163,7 @@ export const HomePage = () => {
             const rating = ratings[game.appid];
             const hasNote = !!notes[game.appid];
             const gameStatus = statuses[game.appid]?.status;
-            const isEndless = statuses[game.appid]?.isEndless;
+            const isInProgress = (sessions[game.appid]?.length ?? 0) > 0 && !gameStatus;
             return (
               <div
                 key={game.appid}
@@ -168,12 +172,14 @@ export const HomePage = () => {
               >
                 {gameStatus && (
                   <div className={`${styles.statusBadge} ${getStatusBadgeClass(gameStatus)}`}>
-                    {gameStatus === 'in_progress'
-                      ? 'In Progress'
-                      : gameStatus.charAt(0).toUpperCase() + gameStatus.slice(1)}
+                    {STATUS_LABELS[gameStatus] ?? gameStatus}
                   </div>
                 )}
-                {isEndless && <div className={styles.endlessBadge}>Endless</div>}
+                {!gameStatus && isInProgress && (
+                  <div className={`${styles.statusBadge} ${styles.statusBadgeInProgress}`}>
+                    In Progress
+                  </div>
+                )}
                 <div className={styles.gameImage}>
                   {game.img_icon_url ? (
                     <img src={getGameCover(game.appid, game.img_icon_url)} alt={game.name} />
@@ -181,6 +187,17 @@ export const HomePage = () => {
                     <div className={styles.noImage}>No Image</div>
                   )}
                 </div>
+                <button
+                  className={styles.addLogBtn}
+                  type="button"
+                  title="Log a session"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLogGame(game);
+                  }}
+                >
+                  +
+                </button>
                 <div className={styles.gameInfo}>
                   <h3 className={styles.gameTitle}>
                     {game.name}
@@ -215,6 +232,7 @@ export const HomePage = () => {
       )}
 
       {selectedGame && <GameCardModal game={selectedGame} onClose={() => setSelectedGame(null)} />}
+      {logGame && <LogModal game={logGame} onClose={() => setLogGame(null)} />}
     </div>
   );
 };

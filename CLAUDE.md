@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Backlog Hero is an Electron desktop app for browsing your Steam library with notes, completion tracking, ratings, and achievements.
+Backlog Hero is an Electron desktop app for browsing your Steam library with notes, session logging, ratings, and game status tracking.
 
 ## Architecture
 
@@ -13,19 +13,23 @@ src/
 ├── renderer/              # React UI (Vite, ESM, TypeScript)
 │   ├── main.tsx           # Entry point — HashRouter + GameProvider
 │   ├── components/        # Reusable UI components (kebab-case directories)
-│   │   ├── header/        # Nav bar with Library/Settings links
-│   │   └── game-card-modal/ # Game detail modal (status pills, notes, achievements)
+│   │   ├── header/        # Nav bar with Library/Log/Settings links
+│   │   ├── game-card-modal/ # Game detail modal (status pills, notes, achievements)
+│   │   └── log-modal/     # Session logging modal (length, rating, notes, status)
 │   ├── context/
 │   │   └── game-context/  # GameProvider — all game state, filters, sorting, API calls
 │   ├── pages/
-│   │   ├── home-page/     # Library grid with search/filter/sort
+│   │   ├── home-page/     # Library grid with search/filter/sort; "+" log button per card
+│   │   ├── log-page/      # Recent activity (horizontal scroll) + session timeline
 │   │   └── settings-page/ # Steam API key config, refresh library, export/import
 │   ├── styles.global.css  # CSS variables and base styles
 │   └── types.d.ts         # Renderer-side type declarations + window.electronAPI
 └── shared/                # Shared between main and renderer (pure TypeScript)
     ├── types.ts            # Shared type definitions (SteamGame, GameRating, etc.)
     ├── gameUtils.ts        # Pure filter/sort/format utilities
-    ├── gameUtils.test.ts   # 18 unit tests for gameUtils
+    ├── gameUtils.test.ts   # Unit tests for gameUtils
+    ├── logUtils.ts         # Session/cover helpers (getRecentActivity, computeSharedRating, …)
+    ├── logUtils.test.ts    # Unit tests for logUtils
     ├── updaterUtils.ts     # Pure update feed + .app bundle path helpers
     └── updaterUtils.test.ts # Unit tests for updaterUtils
 ```
@@ -36,7 +40,9 @@ src/
 - **CSS Modules** — each component/page has a co-located `.module.css`
 - **Path aliases** — `components/*`, `pages/*`, `context/*` map to `src/renderer/*`; `@shared/*` maps to `src/shared/*`
 - **GameContext** holds all game state; pages/components consume via `useGameContext()`
-- **electron-store** persists all data locally (games, ratings, notes, statuses, achievements, filter prefs)
+- **electron-store** persists all data locally (games, ratings, notes, statuses, sessions, achievements, coverUrls, filter prefs)
+- **Status system** — `GameStatusType = 'backlog' | 'completed' | 'retired' | 'dropped'`; _In Progress_ is derived (has sessions + no explicit status). Migration runs on startup to strip legacy `in_progress` status and `isEndless` flag.
+- **Session logging** — `GameSession {id, appid, date, minutes, rating?, notes?}` persisted per-game; session rating is folded into the game's shared user rating via `computeSharedRating`
 - **IPC** is request/response via `ipcMain.handle` / `ipcRenderer.invoke` plus progress events for batch fetches
 - **electron-updater** checks GitHub Releases for updates every 4 hours in production builds. The app is unsigned, so macOS bypasses Squirrel.Mac: `src/main/updater.ts` sets `autoInstallOnAppQuit = false`, downloads the zip, and `installUpdate()` swaps the `.app` bundle via a detached helper and relaunches. Pure feed/path helpers live in `src/shared/updaterUtils.ts` (unit tested). A **Use beta updates** toggle switches between the stable GitHub feed and the rolling `beta` release tag built from `develop`.
 

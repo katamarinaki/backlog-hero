@@ -242,21 +242,53 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
+.gameCard:hover .addLogBtn {
+  opacity: 1;
+}
+
+.addLogBtn {
+  position: absolute;
+  bottom: 0.5rem;
+  right: 0.5rem;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background-color: var(--bg-secondary);
+  color: var(--accent);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.15s,
+    background-color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.addLogBtn:hover {
+  background-color: var(--accent);
+  color: var(--bg-primary);
+  border-color: var(--accent);
+}
+
 /* Game Card Status Variants */
+.statusBacklog {
+  border: 1px solid var(--status-backlog);
+}
+
 .statusCompleted {
   border: 1px solid var(--status-completed);
 }
 
-.statusInProgress {
-  border: 1px solid var(--status-in-progress);
+.statusRetired {
+  border: 1px solid var(--status-retired);
 }
 
 .statusDropped {
   border: 1px solid var(--status-dropped);
-}
-
-.statusBacklog {
-  border: 1px solid var(--status-backlog);
 }
 
 .gameImage {
@@ -336,8 +368,18 @@
   letter-spacing: 0.03em;
 }
 
+.statusBadgeBacklog {
+  background-color: var(--status-backlog);
+  color: var(--bg-primary);
+}
+
 .statusBadgeCompleted {
   background-color: var(--status-completed);
+  color: white;
+}
+
+.statusBadgeRetired {
+  background-color: var(--status-retired);
   color: white;
 }
 
@@ -349,24 +391,4 @@
 .statusBadgeDropped {
   background-color: var(--status-dropped);
   color: white;
-}
-
-.statusBadgeBacklog {
-  background-color: var(--status-backlog);
-  color: var(--bg-primary);
-}
-
-/* Endless Badge */
-.endlessBadge {
-  position: absolute;
-  top: 0.5rem;
-  left: 0.5rem;
-  background-color: var(--status-endless);
-  color: white;
-  font-size: 0.6rem;
-  font-weight: 600;
-  padding: 0.15rem 0.4rem;
-  border-radius: 3px;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
 }

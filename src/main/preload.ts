@@ -7,6 +7,7 @@ import type {
   GameCompletion,
   GameStatusType,
   GameStatus,
+  GameSession,
   StatusFilter,
   GameAchievements,
   FilterPreferences,
@@ -19,6 +20,7 @@ export type {
   GameCompletion,
   GameStatusType,
   GameStatus,
+  GameSession,
   StatusFilter,
   GameAchievements,
   FilterPreferences,
@@ -46,6 +48,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('save-settings', settings),
   fetchGames: (): Promise<SteamGame[]> => ipcRenderer.invoke('fetch-games'),
   getGames: (): Promise<SteamGame[]> => ipcRenderer.invoke('get-games'),
+  resolveCovers: (appids: number[]): Promise<Record<number, string>> =>
+    ipcRenderer.invoke('resolve-covers', appids),
   getLastFetchTimestamp: (): Promise<number> => ipcRenderer.invoke('get-last-fetch-timestamp'),
   fetchRatings: (appids: number[]): Promise<Record<number, GameRating>> =>
     ipcRenderer.invoke('fetch-ratings', appids),
@@ -62,6 +66,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('get-completions'),
   saveCompletion: (appid: number, completion: GameCompletion | null): Promise<boolean> =>
     ipcRenderer.invoke('save-completion', { appid, completion }),
+  getSessions: (): Promise<Record<number, GameSession[]>> => ipcRenderer.invoke('get-sessions'),
+  saveSession: (appid: number, session: GameSession): Promise<GameSession[]> =>
+    ipcRenderer.invoke('save-session', { appid, session }),
+  deleteSession: (appid: number, id: string): Promise<GameSession[]> =>
+    ipcRenderer.invoke('delete-session', { appid, id }),
   getStatuses: (): Promise<Record<number, GameStatus>> => ipcRenderer.invoke('get-statuses'),
   saveStatus: (appid: number, status: GameStatus | null): Promise<boolean> =>
     ipcRenderer.invoke('save-status', { appid, status }),

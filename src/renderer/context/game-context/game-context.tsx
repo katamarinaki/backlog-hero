@@ -10,7 +10,14 @@ import {
 import type { ReactNode } from 'react';
 
 import { isFetchStale } from '@shared/gameUtils';
-import type { GameAchievements, GameRating, GameStatus, StatusFilter, SteamGame } from 'types';
+import type {
+  GameAchievements,
+  GameRating,
+  GameSession,
+  GameStatus,
+  StatusFilter,
+  SteamGame,
+} from 'types';
 
 type SortOption = 'playtime' | 'name' | 'rating' | 'last_played' | 'status_date';
 
@@ -18,9 +25,11 @@ interface GameContextValue {
   // Data
   games: SteamGame[];
   ratings: Record<number, GameRating>;
+  userRatings: Record<number, number>;
   notes: Record<number, string>;
   statuses: Record<number, GameStatus | undefined>;
   achievements: Record<number, GameAchievements>;
+  sessions: Record<number, GameSession[]>;
   hasSettings: boolean;
 
   // Error state
@@ -46,7 +55,10 @@ interface GameContextValue {
 
   // Actions
   saveNote: (note: string) => Promise<void>;
-  saveStatus: (status: GameStatus | null) => Promise<void>;
+  saveStatus: (appid: number, status: GameStatus | null) => Promise<void>;
+  saveUserRating: (appid: number, rating: number) => Promise<void>;
+  saveSession: (appid: number, session: GameSession) => Promise<void>;
+  deleteSession: (appid: number, id: string) => Promise<void>;
   refreshLibrary: () => Promise<void>;
   fetchRatings: () => Promise<void>;
   fetchAchievements: () => Promise<void>;
@@ -72,9 +84,11 @@ interface GameProviderProps {
 export const GameProvider = ({ children }: GameProviderProps) => {
   const [games, setGames] = useState<SteamGame[]>([]);
   const [ratings, setRatings] = useState<Record<number, GameRating>>({});
+  const [userRatings, setUserRatings] = useState<Record<number, number>>({});
   const [notes, setNotes] = useState<Record<number, string>>({});
   const [statuses, setStatuses] = useState<Record<number, GameStatus>>({});
   const [achievements, setAchievements] = useState<Record<number, GameAchievements>>({});
+  const [sessions, setSessions] = useState<Record<number, GameSession[]>>({});
   const [hasSettings, setHasSettings] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('playtime');
@@ -102,6 +116,8 @@ export const GameProvider = ({ children }: GameProviderProps) => {
           cachedNotes,
           cachedStatuses,
           cachedAchievements,
+          cachedSessions,
+          cachedUserRatings,
           filterPrefs,
         ] = await Promise.all([
           window.electronAPI.getGames(),
@@ -109,6 +125,8 @@ export const GameProvider = ({ children }: GameProviderProps) => {
           window.electronAPI.getNotes(),
           window.electronAPI.getStatuses(),
           window.electronAPI.getAchievements(),
+          window.electronAPI.getSessions(),
+          window.electronAPI.getUserRatings(),
           window.electronAPI.getFilterPreferences(),
         ]);
 
@@ -126,6 +144,12 @@ export const GameProvider = ({ children }: GameProviderProps) => {
         }
         if (cachedAchievements) {
           setAchievements(cachedAchievements);
+        }
+        if (cachedSessions) {
+          setSessions(cachedSessions);
+        }
+        if (cachedUserRatings) {
+          setUserRatings(cachedUserRatings);
         }
         if (filterPrefs) {
           setStatusFilter(filterPrefs.statusFilter);
@@ -168,22 +192,41 @@ export const GameProvider = ({ children }: GameProviderProps) => {
     [selectedGame],
   );
 
-  const saveStatus = useCallback(
-    async (status: GameStatus | null) => {
-      if (!selectedGame) return;
-      await window.electronAPI.saveStatus(selectedGame.appid, status);
-      setStatuses((prev) => {
-        const updated = { ...prev };
-        if (status === null) {
-          delete updated[selectedGame.appid];
-        } else {
-          updated[selectedGame.appid] = status;
-        }
-        return updated;
-      });
-    },
-    [selectedGame],
-  );
+  const saveStatus = useCallback(async (appid: number, status: GameStatus | null) => {
+    await window.electronAPI.saveStatus(appid, status);
+    setStatuses((prev) => {
+      const updated = { ...prev };
+      if (status === null) {
+        delete updated[appid];
+      } else {
+        updated[appid] = status;
+      }
+      return updated;
+    });
+  }, []);
+
+  const saveUserRating = useCallback(async (appid: number, rating: number) => {
+    await window.electronAPI.saveUserRating(appid, rating);
+    setUserRatings((prev) => ({ ...prev, [appid]: rating }));
+  }, []);
+
+  const saveSession = useCallback(async (appid: number, sessionToSave: GameSession) => {
+    const updated = await window.electronAPI.saveSession(appid, sessionToSave);
+    setSessions((prev) => ({ ...prev, [appid]: updated }));
+  }, []);
+
+  const deleteSession = useCallback(async (appid: number, id: string) => {
+    const updated = await window.electronAPI.deleteSession(appid, id);
+    setSessions((prev) => {
+      const next = { ...prev };
+      if (updated.length > 0) {
+        next[appid] = updated;
+      } else {
+        delete next[appid];
+      }
+      return next;
+    });
+  }, []);
 
   const handleSortChange = useCallback(
     (newSort: SortOption) => {
@@ -256,22 +299,21 @@ export const GameProvider = ({ children }: GameProviderProps) => {
 
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = {
-      completed: 0,
-      in_progress: 0,
-      dropped: 0,
       backlog: 0,
-      endless: 0,
+      in_progress: 0,
+      completed: 0,
+      retired: 0,
+      dropped: 0,
     };
     Object.values(statuses).forEach((s) => {
-      if (s.isEndless) {
-        counts.endless++;
-      }
-      if (s.status && s.status in counts) {
-        counts[s.status]++;
-      }
+      if (s.status && s.status in counts) counts[s.status]++;
     });
+    // in_progress is derived: has sessions + no explicit status at all
+    counts.in_progress = games.filter(
+      (g) => (sessions[g.appid]?.length ?? 0) > 0 && !statuses[g.appid]?.status,
+    ).length;
     return counts;
-  }, [statuses]);
+  }, [statuses, sessions, games]);
 
   const filteredAndSortedGames = useMemo(() => {
     let result = [...games];
@@ -283,9 +325,13 @@ export const GameProvider = ({ children }: GameProviderProps) => {
 
     if (statusFilter !== 'all') {
       if (statusFilter === 'untracked') {
-        result = result.filter((game) => !statuses[game.appid]);
-      } else if (statusFilter === 'endless') {
-        result = result.filter((game) => statuses[game.appid]?.isEndless);
+        result = result.filter(
+          (game) => !statuses[game.appid]?.status && !sessions[game.appid]?.length,
+        );
+      } else if (statusFilter === 'in_progress') {
+        result = result.filter(
+          (game) => (sessions[game.appid]?.length ?? 0) > 0 && !statuses[game.appid]?.status,
+        );
       } else {
         result = result.filter((game) => statuses[game.appid]?.status === statusFilter);
       }
@@ -329,14 +375,16 @@ export const GameProvider = ({ children }: GameProviderProps) => {
     });
 
     return result;
-  }, [games, ratings, statuses, searchQuery, sortBy, sortAsc, statusFilter]);
+  }, [games, ratings, statuses, sessions, searchQuery, sortBy, sortAsc, statusFilter]);
 
   const value: GameContextValue = {
     games,
     ratings,
+    userRatings,
     notes,
     statuses,
     achievements,
+    sessions,
     hasSettings,
     searchQuery,
     setSearchQuery,
@@ -351,6 +399,9 @@ export const GameProvider = ({ children }: GameProviderProps) => {
     statusCounts,
     saveNote,
     saveStatus,
+    saveUserRating,
+    saveSession,
+    deleteSession,
     refreshLibrary,
     fetchRatings: fetchRatingsAction,
     fetchAchievements: fetchAchievementsAction,

@@ -26,27 +26,38 @@ export interface GameCompletion {
   completedDate?: string;
 }
 
-export type GameStatusType = 'completed' | 'in_progress' | 'dropped' | 'backlog';
+export type GameStatusType = 'backlog' | 'completed' | 'retired' | 'dropped';
 
 export interface GameStatus {
   status?: GameStatusType;
   statusDate?: string;
   completedDate?: string;
-  isEndless?: boolean;
 }
 
 export type StatusFilter =
   | 'all'
-  | 'completed'
-  | 'in_progress'
-  | 'dropped'
   | 'backlog'
-  | 'untracked'
-  | 'endless';
+  | 'completed'
+  | 'retired'
+  | 'dropped'
+  | 'in_progress'
+  | 'untracked';
 
 export interface GameAchievements {
   achieved: number;
   total: number;
+}
+
+export interface GameSession {
+  id: string;
+  appid: number;
+  /** ISO date the session took place (yyyy-mm-dd). */
+  date: string;
+  /** Session length in minutes. */
+  minutes: number;
+  /** Optional 0-100 rating for this specific session. */
+  rating?: number;
+  notes?: string;
 }
 
 export interface FilterPreferences {

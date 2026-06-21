@@ -13,6 +13,9 @@ export const Header = () => {
         <NavLink to="/" className={getLinkClass} end>
           Library
         </NavLink>
+        <NavLink to="/log" className={getLinkClass}>
+          Log
+        </NavLink>
         <NavLink to="/settings" className={getLinkClass}>
           Settings
         </NavLink>

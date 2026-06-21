@@ -8,13 +8,19 @@ import type {
   GameAchievements,
   GameCompletion,
   GameRating,
+  GameSession,
   GameStatus,
 } from '../shared/types';
 
 import { store, STORE_DEFAULTS, type StoreSchema } from './store';
 import { migrateCompletionsToStatuses } from './migration';
 import { initAutoUpdater, toggleBetaFeed, installUpdate } from './updater';
-import { fetchOwnedGames, fetchGameRating, fetchGameAchievements } from './steam-api';
+import {
+  fetchOwnedGames,
+  fetchGameRating,
+  fetchGameAchievements,
+  fetchCoverUrls,
+} from './steam-api';
 
 // --- Debug IPC ---
 
@@ -174,6 +180,28 @@ ipcMain.handle('fetch-games', async () => {
 
 ipcMain.handle('get-games', () => store.get('games'));
 
+// Resolves vertical cover URLs (cached), fetching only the appids we don't know yet.
+ipcMain.handle('resolve-covers', async (_, appids: unknown) => {
+  if (!Array.isArray(appids)) {
+    throw new Error('appids must be an array');
+  }
+  const ids = appids.filter((id): id is number => typeof id === 'number');
+  const cached = store.get('coverUrls', {});
+  const missing = ids.filter((id) => !(id in cached));
+
+  if (missing.length === 0) return cached;
+
+  try {
+    const fetched = await fetchCoverUrls(missing);
+    const merged = { ...cached, ...fetched };
+    store.set('coverUrls', merged);
+    return merged;
+  } catch (err) {
+    console.error('Failed to resolve cover URLs:', err);
+    return cached;
+  }
+});
+
 ipcMain.handle('get-last-fetch-timestamp', () => store.get('lastFetchTimestamp', 0));
 
 // --- IPC: Ratings ---
@@ -297,6 +325,46 @@ ipcMain.handle(
   },
 );
 
+// --- IPC: Sessions (gaming-session log) ---
+
+ipcMain.handle('get-sessions', () => store.get('sessions') || {});
+
+ipcMain.handle('save-session', (_, { appid, session }: { appid: number; session: GameSession }) => {
+  if (
+    typeof appid !== 'number' ||
+    !session ||
+    typeof session.id !== 'string' ||
+    typeof session.minutes !== 'number' ||
+    session.minutes < 0 ||
+    session.appid !== appid
+  ) {
+    throw new Error('Invalid session payload');
+  }
+  const sessions = store.get('sessions') || {};
+  const list = sessions[appid] ? [...sessions[appid]] : [];
+  const existingIndex = list.findIndex((s) => s.id === session.id);
+  if (existingIndex >= 0) {
+    list[existingIndex] = session;
+  } else {
+    list.push(session);
+  }
+  sessions[appid] = list;
+  store.set('sessions', sessions);
+  return list;
+});
+
+ipcMain.handle('delete-session', (_, { appid, id }: { appid: number; id: string }) => {
+  const sessions = store.get('sessions') || {};
+  const list = (sessions[appid] || []).filter((s) => s.id !== id);
+  if (list.length > 0) {
+    sessions[appid] = list;
+  } else {
+    delete sessions[appid];
+  }
+  store.set('sessions', sessions);
+  return list;
+});
+
 // --- IPC: Achievements ---
 
 ipcMain.handle('fetch-achievements', async (event, appids: number[]) => {
@@ -381,12 +449,12 @@ function sanitizeFilterPreferences(value: unknown): FilterPreferences | null {
 
   const statusFilterValues = [
     'all',
-    'completed',
-    'in_progress',
-    'dropped',
     'backlog',
+    'completed',
+    'retired',
+    'dropped',
+    'in_progress',
     'untracked',
-    'endless',
   ] as const;
   const sortByValues = ['playtime', 'name', 'rating', 'last_played', 'status_date'] as const;
 
@@ -419,6 +487,8 @@ function getBackupData(): StoreSchema {
     statuses: store.get('statuses'),
     achievements: store.get('achievements'),
     achievementTimestamps: store.get('achievementTimestamps'),
+    coverUrls: store.get('coverUrls'),
+    sessions: store.get('sessions'),
     filterPreferences: store.get('filterPreferences'),
     useBetaUpdates: store.get('useBetaUpdates', false),
     lastFetchTimestamp: store.get('lastFetchTimestamp', 0),

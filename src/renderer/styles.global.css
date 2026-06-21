@@ -19,7 +19,7 @@
   --status-in-progress: #66c0f4;
   --status-dropped: #a34c4c;
   --status-backlog: #b9a074;
-  --status-endless: #9b59b6;
+  --status-retired: #9b59b6;
 }
 
 body {
