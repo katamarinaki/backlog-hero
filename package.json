@@ -77,7 +77,8 @@
       "artifactName": "Backlog-Hero-${version}.${ext}",
       "category": "public.app-category.games",
       "hardenedRuntime": false,
-      "gatekeeperAssess": false
+      "gatekeeperAssess": false,
+      "identity": null
     },
     "win": {
       "target": [

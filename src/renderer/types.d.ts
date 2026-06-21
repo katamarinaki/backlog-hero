@@ -91,6 +91,18 @@ export interface ElectronAPI {
   importData: () => Promise<boolean>;
   getBetaUpdates: () => Promise<boolean>;
   saveBetaUpdates: (useBeta: boolean) => Promise<boolean>;
+  getIsPackaged: () => Promise<boolean>;
+  getAppVersion: () => Promise<string>;
+  installUpdate: () => Promise<boolean>;
+  onUpdaterLog: (callback: (msg: string) => void) => () => void;
+  onUpdaterStatus: (
+    callback: (status: {
+      type: string;
+      version?: string;
+      message?: string;
+      percent?: number;
+    }) => void,
+  ) => () => void;
 }
 
 declare global {

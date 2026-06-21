@@ -56,7 +56,25 @@ Backlog Hero is an Electron desktop app for browsing your Steam library and keep
 
 - Auto updates are enabled in production builds via `electron-updater`.
 - Releases are expected to be published on GitHub for this repository.
-- When the app starts, it checks for updates and will download/install them when available.
+- When the app starts (and every 4 hours), it checks for updates, downloads them in the
+  background, and surfaces a **Restart & Install** button in **Settings → Updates**.
+
+### Channels
+
+- **Stable** (default): updates come from the latest published GitHub release.
+- **Beta**: enable **Use beta updates** in Settings to track the rolling `beta` release tag,
+  which is rebuilt on every push to `develop`. Beta versions are numbered as a prerelease of
+  the next stable (e.g. stable `1.0.10` → beta `1.0.11-beta.N`), so when the matching stable
+  ships you roll forward onto it automatically after switching back to the stable channel.
+
+### macOS (unsigned)
+
+The app is **not signed with an Apple Developer certificate**. Squirrel.Mac refuses to install
+an unsigned/ad-hoc bundle (`code object is not signed at all`), so on macOS we bypass it: the
+update zip is downloaded by `electron-updater`, then a small detached helper waits for the app
+to quit, swaps the `.app` bundle in place, and relaunches it. Builds are ad-hoc signed in
+`scripts/after-pack.js` so they launch on Apple Silicon. Windows (NSIS) and Linux (AppImage)
+use the standard `electron-updater` install path.
 
 ## Releases
 

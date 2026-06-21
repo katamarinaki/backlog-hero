@@ -13,12 +13,14 @@ import type {
 
 import { store, STORE_DEFAULTS, type StoreSchema } from './store';
 import { migrateCompletionsToStatuses } from './migration';
-import { initAutoUpdater, toggleBetaFeed } from './updater';
+import { initAutoUpdater, toggleBetaFeed, installUpdate } from './updater';
 import { fetchOwnedGames, fetchGameRating, fetchGameAchievements } from './steam-api';
 
 // --- Debug IPC ---
 
 ipcMain.handle('get-is-packaged', () => app.isPackaged);
+ipcMain.handle('get-app-version', () => app.getVersion());
+ipcMain.handle('install-update', () => installUpdate());
 
 // --- Startup migration ---
 

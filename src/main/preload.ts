@@ -85,6 +85,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveBetaUpdates: (useBeta: boolean): Promise<boolean> =>
     ipcRenderer.invoke('save-beta-updates', useBeta),
   getIsPackaged: (): Promise<boolean> => ipcRenderer.invoke('get-is-packaged'),
+  getAppVersion: (): Promise<string> => ipcRenderer.invoke('get-app-version'),
+  installUpdate: (): Promise<boolean> => ipcRenderer.invoke('install-update'),
   onUpdaterLog: (callback: (msg: string) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, msg: string) => callback(msg);
     ipcRenderer.on('updater-log', handler);
