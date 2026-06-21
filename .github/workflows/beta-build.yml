@@ -30,6 +30,7 @@ jobs:
         run: npm ci
 
       - name: Set Beta Version
+        shell: bash
         run: |
           BASE_VERSION=$(node -p "require('./package.json').version")
           BETA_VERSION="${BASE_VERSION}-beta.${{ github.run_number }}"
