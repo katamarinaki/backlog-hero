@@ -77,7 +77,7 @@ jobs:
           draft: true
           generateReleaseNotes: true
           tag: v${{ steps.version.outputs.version }}
-          name: ${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
           token: ${{ secrets.GITHUB_TOKEN }}
           body: |
             Install

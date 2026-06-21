@@ -27,8 +27,8 @@ jobs:
           TAG="v${VERSION}"
 
           if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists, skipping."
-            exit 0
+            echo "::error::Tag $TAG already exists. Did you forget to bump the version in package.json? No release will be created for this merge."
+            exit 1
           fi
 
           git config user.name "github-actions[bot]"

@@ -5,8 +5,10 @@ import { GameCardModal } from 'components/game-card-modal';
 import { useGameContext } from 'context/game-context';
 import type { StatusFilter } from 'types';
 
+import { formatPlaytime } from '../../../shared/gameUtils';
+
 import styles from './home-page.module.css';
-import { formatPlaytime, getGameCover, getRatingColor } from './utils';
+import { getGameCover, getRatingColor } from './utils';
 
 export const HomePage = () => {
   const {
