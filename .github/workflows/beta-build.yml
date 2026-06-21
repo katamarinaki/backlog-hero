@@ -74,6 +74,7 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           allowUpdates: true
+          replacesArtifacts: false
           draft: false
           prerelease: true
           generateReleaseNotes: true
