@@ -1,9 +1,9 @@
 name: Build and Draft Release
 
 on:
-  push:
-    tags:
-      - 'v*'
+  release:
+    types:
+      - published
   workflow_dispatch:
     inputs:
       version:
@@ -46,6 +46,7 @@ jobs:
             VERSION="${{ inputs.version }}"
             TAG="v${VERSION}"
           else
+            # release: published — tag already exists
             TAG="${{ github.ref_name }}"
             VERSION="${TAG#v}"
           fi
@@ -77,7 +78,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Create Tag (if manual dispatch)
+      - name: Create Tag (manual dispatch only)
         if: github.event_name == 'workflow_dispatch'
         shell: bash
         run: |
@@ -98,11 +99,13 @@ jobs:
           path: release-artifacts
           merge-multiple: true
 
-      - name: Create Draft Release
+      - name: Upload Build Artifacts
         uses: ncipollo/release-action@v1
         with:
-          draft: true
-          generateReleaseNotes: true
+          allowUpdates: true
+          replacesArtifacts: true
+          omitBodyDuringUpdate: true
+          omitNameDuringUpdate: true
           tag: ${{ needs.build.outputs.tag }}
           name: ${{ needs.build.outputs.tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
