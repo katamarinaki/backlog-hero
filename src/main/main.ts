@@ -58,6 +58,7 @@ interface StoreSchema {
   achievements: Record<number, GameAchievements>;
   filterPreferences: FilterPreferences;
   useBetaUpdates: boolean;
+  lastFetchTimestamp: number;
 }
 
 interface SteamGame {
@@ -85,6 +86,7 @@ const defaultStoreData: StoreSchema = {
     sortAsc: false,
   },
   useBetaUpdates: false,
+  lastFetchTimestamp: 0,
 };
 
 const store = new Store<StoreSchema>({
@@ -242,6 +244,7 @@ ipcMain.handle('fetch-games', async () => {
           if (parsed.response && parsed.response.games) {
             const games = parsed.response.games as SteamGame[];
             store.set('games', games);
+            store.set('lastFetchTimestamp', Date.now());
             resolve(games);
           } else {
             reject(new Error('Invalid response from Steam API'));
@@ -263,6 +266,11 @@ ipcMain.handle('fetch-games', async () => {
 // IPC Handler for getting cached games
 ipcMain.handle('get-games', () => {
   return store.get('games');
+});
+
+// IPC Handler for last fetch timestamp
+ipcMain.handle('get-last-fetch-timestamp', () => {
+  return store.get('lastFetchTimestamp', 0);
 });
 
 // Helper to get rating description based on score
@@ -583,6 +591,7 @@ function getBackupData(): StoreSchema {
     achievements: store.get('achievements'),
     filterPreferences: store.get('filterPreferences'),
     useBetaUpdates: store.get('useBetaUpdates', false),
+    lastFetchTimestamp: store.get('lastFetchTimestamp', 0),
   };
 }
 
