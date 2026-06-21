@@ -84,4 +84,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getBetaUpdates: (): Promise<boolean> => ipcRenderer.invoke('get-beta-updates'),
   saveBetaUpdates: (useBeta: boolean): Promise<boolean> =>
     ipcRenderer.invoke('save-beta-updates', useBeta),
+  getIsPackaged: (): Promise<boolean> => ipcRenderer.invoke('get-is-packaged'),
+  onUpdaterLog: (callback: (msg: string) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, msg: string) => callback(msg);
+    ipcRenderer.on('updater-log', handler);
+    return () => ipcRenderer.removeListener('updater-log', handler);
+  },
+  onUpdaterStatus: (
+    callback: (status: {
+      type: string;
+      version?: string;
+      message?: string;
+      percent?: number;
+    }) => void,
+  ) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      status: { type: string; version?: string; message?: string; percent?: number },
+    ) => callback(status);
+    ipcRenderer.on('updater-status', handler);
+    return () => ipcRenderer.removeListener('updater-status', handler);
+  },
 });
