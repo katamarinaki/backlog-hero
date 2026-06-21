@@ -1,0 +1,22 @@
+name: Label Dev → Main PRs
+
+on:
+  pull_request:
+    types:
+      - opened
+    branches:
+      - main
+
+jobs:
+  label:
+    if: github.head_ref == 'develop'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Add skip-changelog label
+        run: |
+          gh pr edit ${{ github.event.pull_request.number }} \
+            --add-label skip-changelog
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
