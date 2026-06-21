@@ -43,6 +43,7 @@ interface GameContextValue {
   saveNote: (note: string) => Promise<void>;
   saveStatus: (status: GameStatus | null) => Promise<void>;
   refreshLibrary: () => Promise<void>;
+  fetchRecentActivity: () => Promise<void>;
   fetchRatings: () => Promise<void>;
   fetchAchievements: () => Promise<void>;
 
@@ -131,6 +132,32 @@ export const GameProvider = ({ children }: GameProviderProps) => {
     loadData();
   }, []);
 
+  // Fetch recent activity on startup (silent — no loading indicator)
+  useEffect(() => {
+    if (!hasSettings || games.length === 0) return;
+    window.electronAPI
+      .fetchRecentActivity()
+      .then((recentGames) => {
+        if (recentGames.length > 0) {
+          setGames((prev) => {
+            const updated = [...prev];
+            for (const recent of recentGames) {
+              const idx = updated.findIndex((g) => g.appid === recent.appid);
+              if (idx !== -1) {
+                updated[idx] = {
+                  ...updated[idx],
+                  playtime_forever: recent.playtime_forever,
+                  playtime_2weeks: recent.playtime_2weeks || undefined,
+                };
+              }
+            }
+            return updated;
+          });
+        }
+      })
+      .catch((err) => console.error('Failed to fetch recent activity:', err));
+  }, [hasSettings, games.length]);
+
   const saveNote = useCallback(
     async (note: string) => {
       if (!selectedGame) return;
@@ -202,6 +229,31 @@ export const GameProvider = ({ children }: GameProviderProps) => {
       setRatings(fetchedRatings);
     } finally {
       setSyncLoading(null);
+    }
+  }, [games]);
+
+  const fetchRecentActivityAction = useCallback(async () => {
+    if (games.length === 0) return;
+    try {
+      const recentGames = await window.electronAPI.fetchRecentActivity();
+      if (recentGames.length > 0) {
+        setGames((prev) => {
+          const updated = [...prev];
+          for (const recent of recentGames) {
+            const idx = updated.findIndex((g) => g.appid === recent.appid);
+            if (idx !== -1) {
+              updated[idx] = {
+                ...updated[idx],
+                playtime_forever: recent.playtime_forever,
+                playtime_2weeks: recent.playtime_2weeks || undefined,
+              };
+            }
+          }
+          return updated;
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch recent activity:', err);
     }
   }, [games]);
 
@@ -315,6 +367,7 @@ export const GameProvider = ({ children }: GameProviderProps) => {
     saveNote,
     saveStatus,
     refreshLibrary,
+    fetchRecentActivity: fetchRecentActivityAction,
     fetchRatings: fetchRatingsAction,
     fetchAchievements: fetchAchievementsAction,
     syncLoading,

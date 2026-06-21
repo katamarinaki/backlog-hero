@@ -67,6 +67,9 @@ export interface ElectronAPI {
   getSettings: () => Promise<Settings>;
   saveSettings: (settings: Settings) => Promise<boolean>;
   fetchGames: () => Promise<SteamGame[]>;
+  fetchRecentActivity: () => Promise<
+    { appid: number; name: string; playtime_forever: number; playtime_2weeks: number; img_icon_url: string; img_logo_url: string }[]
+  >;
   getGames: () => Promise<SteamGame[]>;
   fetchRatings: (appids: number[]) => Promise<Record<number, GameRating>>;
   getRatings: () => Promise<Record<number, GameRating>>;
