@@ -122,6 +122,134 @@
   color: var(--text-secondary);
 }
 
+/* --- Timeline --- */
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.timelineRow {
+  /* nothing — btn handles full width */
+}
+
+.timelineBtn {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+  width: 100%;
+  padding: 0.75rem;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s;
+}
+
+.timelineBtn:hover {
+  border-color: var(--accent);
+}
+
+.timelineThumb {
+  flex: 0 0 80px;
+  height: 37px; /* 460:215 ratio at 80px wide */
+  border-radius: 4px;
+  overflow: hidden;
+  background-color: var(--bg-secondary);
+}
+
+.timelineThumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.timelineInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.timelineTitle {
+  font-weight: 600;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timelineMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.timelineDate {
+  color: var(--text-secondary);
+}
+
+.timelineLength {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.timelineRating {
+  color: var(--text-secondary);
+}
+
+.timelineNotes {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.statusBadge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.backlog {
+  background-color: var(--status-backlog);
+  color: var(--bg-primary);
+}
+
+.completed {
+  background-color: var(--status-completed);
+  color: white;
+}
+
+.retired {
+  background-color: var(--status-retired);
+  color: white;
+}
+
+.dropped {
+  background-color: var(--status-dropped);
+  color: white;
+}
+
+.sentinel {
+  height: 1px;
+}
+
 /* --- Empty state (no settings) --- */
 .emptyState {
   text-align: center;
