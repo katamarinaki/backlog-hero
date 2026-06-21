@@ -56,39 +56,7 @@ jobs:
           echo "Building release $TAG ($VERSION)"
 
       - name: Build Distributables
-        run: |
-          npm run dist -- --publish=never
-          # Remove ALL embedded code signatures (not just _CodeSignature folders).
-          # Electron framework binaries carry embedded signatures that Squirrel.Mac validates.
-          for zipfile in release/*.zip; do
-            [ -f "$zipfile" ] || continue
-            tmpdir="$(mktemp -d)"
-            unzip -q "$zipfile" -d "$tmpdir"
-            codesign --deep --remove-signature "$tmpdir"/*.app 2>/dev/null || true
-            find "$tmpdir" -name _CodeSignature -type d -exec rm -rf {} + 2>/dev/null || true
-            rm -f "$zipfile"
-            ditto -c -k --sequesterRsrc --keepParent "$tmpdir"/*.app "$zipfile"
-            rm -rf "$tmpdir"
-            # Recompute sha512 (electron-updater verifies this)
-            NEW_SHA=$(shasum -a 512 "$zipfile" | awk '{print $1}' | xxd -r -p | base64)
-            NEW_SIZE=$(stat -f%z "$zipfile")
-            ZIPNAME=$(basename "$zipfile")
-            # Update latest-mac.yml with new sha512 and size
-            for ymlfile in release/latest-mac.yml; do
-              [ -f "$ymlfile" ] || continue
-              sed -i '' "s/^sha512:.*/sha512: $NEW_SHA/" "$ymlfile"
-              # Update the zip file entry's sha512 (first in files list)
-              awk -v sha="$NEW_SHA" -v sz="$NEW_SIZE" '
-                /^- url:.*\.zip$/ { in_zip=1; print; next }
-                in_zip && /sha512:/ { print "    sha512: " sha; next }
-                in_zip && /size:/ { print "    size: " sz; in_zip=0; next }
-                { print }
-              ' "$ymlfile" > "$ymlfile.tmp" && mv "$ymlfile.tmp" "$ymlfile"
-            done
-            # Delete stale blockmap (differential download will fall back to full)
-            rm -f "release/${ZIPNAME}.blockmap"
-            echo "Stripped signatures + updated yml for $ZIPNAME ($NEW_SIZE bytes)"
-          done
+        run: npm run dist -- --publish=never
 
       - name: Collect Artifacts
         uses: actions/upload-artifact@v4

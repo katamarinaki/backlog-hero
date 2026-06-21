@@ -1,3 +1,6 @@
+import { exec } from 'child_process';
+import * as path from 'path';
+
 import { autoUpdater } from 'electron-updater';
 import { app, BrowserWindow } from 'electron';
 
@@ -65,13 +68,27 @@ export function initAutoUpdater(): void {
   autoUpdater.on('download-progress', (progress) => {
     broadcast('updater-status', { type: 'downloading', percent: Math.round(progress.percent) });
   });
+  let downloadedFile: string | null = null;
+
   autoUpdater.on('update-downloaded', (info) => {
+    downloadedFile = info.downloadedFile;
     log(`Update downloaded: v${info.version} — will install on quit`);
     broadcast('updater-status', { type: 'downloaded', version: info.version });
   });
   autoUpdater.on('error', (error) => {
     log(`Error: ${error.message}`);
     broadcast('updater-status', { type: 'error', message: error.message });
+
+    // macOS unsigned apps: Squirrel.Mac signature validation fails.
+    // Fall back to manual unzip + replace of the .app bundle.
+    if (
+      process.platform === 'darwin' &&
+      downloadedFile &&
+      error.message?.includes('did not pass validation')
+    ) {
+      log('Signature validation failed — installing update manually');
+      manualInstall(downloadedFile);
+    }
   });
 
   autoUpdater.checkForUpdatesAndNotify().catch((error) => {
@@ -104,5 +121,33 @@ export function toggleBetaFeed(useBeta: boolean): void {
   autoUpdater.checkForUpdatesAndNotify().catch((error) => {
     log(`Toggle check failed: ${error.message}`);
     broadcast('updater-status', { type: 'error', message: error.message });
+  });
+}
+
+function manualInstall(zipPath: string): void {
+  const appName = app.getName();
+  const targetDir = path.dirname(app.getPath('exe')); // /Applications
+  const appBundle = `${appName}.app`;
+
+  const script = `
+    set -e
+    TMPDIR="$(mktemp -d)"
+    unzip -qo "${zipPath}" -d "$TMPDIR"
+    if [ -d "$TMPDIR/${appBundle}" ]; then
+      rm -rf "${targetDir}/${appBundle}"
+      mv "$TMPDIR/${appBundle}" "${targetDir}/"
+      open "${targetDir}/${appBundle}"
+    fi
+    rm -rf "$TMPDIR"
+  `;
+
+  log(`Running manual install script for ${appBundle}`);
+  exec(script, (err, stdout, stderr) => {
+    if (err) {
+      log(`Manual install failed: ${stderr}`);
+    } else {
+      log(`Manual install completed — quitting`);
+      setTimeout(() => app.quit(), 1000);
+    }
   });
 }
