@@ -458,11 +458,26 @@ ipcMain.handle('import-data', async () => {
     steamId: typeof backup.steamId === 'string' ? backup.steamId : STORE_DEFAULTS.steamId,
     games: Array.isArray(backup.games) ? backup.games : STORE_DEFAULTS.games,
     ratings: isObject(backup.ratings) ? backup.ratings : STORE_DEFAULTS.ratings,
+    ratingTimestamps: isObject(backup.ratingTimestamps)
+      ? backup.ratingTimestamps
+      : STORE_DEFAULTS.ratingTimestamps,
+    userRatings: isObject(backup.userRatings) ? backup.userRatings : STORE_DEFAULTS.userRatings,
     notes: isObject(backup.notes) ? backup.notes : STORE_DEFAULTS.notes,
     completions: isObject(backup.completions) ? backup.completions : STORE_DEFAULTS.completions,
     statuses: isObject(backup.statuses) ? backup.statuses : STORE_DEFAULTS.statuses,
     achievements: isObject(backup.achievements) ? backup.achievements : STORE_DEFAULTS.achievements,
+    achievementTimestamps: isObject(backup.achievementTimestamps)
+      ? backup.achievementTimestamps
+      : STORE_DEFAULTS.achievementTimestamps,
     filterPreferences,
+    useBetaUpdates:
+      typeof backup.useBetaUpdates === 'boolean'
+        ? backup.useBetaUpdates
+        : STORE_DEFAULTS.useBetaUpdates,
+    lastFetchTimestamp:
+      typeof backup.lastFetchTimestamp === 'number'
+        ? backup.lastFetchTimestamp
+        : STORE_DEFAULTS.lastFetchTimestamp,
   });
 
   return true;
