@@ -19,6 +19,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -32,10 +35,12 @@ jobs:
       - name: Set Beta Version
         shell: bash
         run: |
-          BASE_VERSION=$(node -p "require('./package.json').version")
+          # Get latest tag as base (e.g. v1.0.0), default to v0.0.0 if no tags exist
+          BASE_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          BASE_VERSION="${BASE_TAG#v}"
           BETA_VERSION="${BASE_VERSION}-beta.${{ github.run_number }}"
           npm version "$BETA_VERSION" --no-git-tag-version
-          echo "Building beta version $BETA_VERSION"
+          echo "Building beta version $BETA_VERSION (base tag $BASE_TAG)"
 
       - name: Build Distributables
         run: npm run dist -- --publish=never
