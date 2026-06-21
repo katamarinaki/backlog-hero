@@ -400,6 +400,8 @@ export const GameCardModal = ({ game, onClose }: Props) => {
               min="0"
               max="100"
               value={userRating ?? 0}
+              aria-label="Your personal rating"
+              aria-valuetext={`${userRating ?? 0} out of 100`}
               onChange={(e) => {
                 handleRatingChange(parseInt(e.target.value, 10));
               }}
