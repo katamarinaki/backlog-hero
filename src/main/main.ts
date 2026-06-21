@@ -57,6 +57,7 @@ interface StoreSchema {
   statuses: Record<number, GameStatus>;
   achievements: Record<number, GameAchievements>;
   filterPreferences: FilterPreferences;
+  useBetaUpdates: boolean;
 }
 
 interface SteamGame {
@@ -83,6 +84,7 @@ const defaultStoreData: StoreSchema = {
     sortBy: 'playtime',
     sortAsc: false,
   },
+  useBetaUpdates: false,
 };
 
 const store = new Store<StoreSchema>({
@@ -152,6 +154,20 @@ function createWindow() {
 
 function initAutoUpdater() {
   if (!app.isPackaged) return;
+
+  const useBeta = store.get('useBetaUpdates', false);
+  if (useBeta) {
+    autoUpdater.setFeedURL({
+      provider: 'generic',
+      url: 'https://github.com/katamarinaki/backlog-hero/releases/download/beta/',
+    });
+  } else {
+    autoUpdater.setFeedURL({
+      provider: 'github',
+      owner: 'katamarinaki',
+      repo: 'backlog-hero',
+    });
+  }
 
   autoUpdater.on('error', (error) => {
     console.error('Auto update error:', error);
@@ -493,6 +509,16 @@ ipcMain.handle('save-filter-preferences', (_, preferences: FilterPreferences) =>
   return true;
 });
 
+// IPC Handlers for beta updates preference
+ipcMain.handle('get-beta-updates', () => {
+  return store.get('useBetaUpdates', false);
+});
+
+ipcMain.handle('save-beta-updates', (_, useBeta: boolean) => {
+  store.set('useBetaUpdates', useBeta);
+  return true;
+});
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -540,6 +566,7 @@ function getBackupData(): StoreSchema {
     statuses: store.get('statuses'),
     achievements: store.get('achievements'),
     filterPreferences: store.get('filterPreferences'),
+    useBetaUpdates: store.get('useBetaUpdates', false),
   };
 }
 

@@ -1,0 +1,93 @@
+name: Beta Build
+
+on:
+  push:
+    branches:
+      - develop
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Distributables
+        run: npm run dist -- --publish=never
+
+      - name: Collect Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: beta-${{ matrix.os }}
+          path: |
+            release/**/*.dmg
+            release/**/*Setup*.exe
+            release/**/*.AppImage
+            release/**/*.blockmap
+            release/**/latest*.yml
+            release/**/app-update.yml
+
+  release:
+    name: Update Beta Release
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: beta-artifacts
+          merge-multiple: true
+
+      - name: Delete Old Beta Tag
+        run: |
+          git push origin --delete beta 2>/dev/null || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Delete Old Beta Release
+        uses: actions/delete-release@v1
+        continue-on-error: true
+        with:
+          release-tag: beta
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Beta Release
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          replacesArtifacts: true
+          draft: false
+          prerelease: true
+          generateReleaseNotes: true
+          tag: beta
+          name: Beta (develop)
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body: |
+            Automated beta build from the `develop` branch.
+
+            To use: enable **Use beta updates** in the app settings.
+          artifacts: |
+            beta-artifacts/**/*.dmg
+            beta-artifacts/**/*.AppImage
+            beta-artifacts/**/*.blockmap
+            beta-artifacts/**/latest*.yml
+            beta-artifacts/**/app-update.yml
+            beta-artifacts/**/*Setup*.exe

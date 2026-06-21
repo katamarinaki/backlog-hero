@@ -102,4 +102,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('save-filter-preferences', preferences),
   exportData: (): Promise<boolean> => ipcRenderer.invoke('export-data'),
   importData: (): Promise<boolean> => ipcRenderer.invoke('import-data'),
+  getBetaUpdates: (): Promise<boolean> => ipcRenderer.invoke('get-beta-updates'),
+  saveBetaUpdates: (useBeta: boolean): Promise<boolean> =>
+    ipcRenderer.invoke('save-beta-updates', useBeta),
 });
