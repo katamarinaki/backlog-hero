@@ -363,6 +363,13 @@ ipcMain.handle('fetch-ratings', async (event, appids: number[]) => {
 
 // Fetch rating for a single game
 ipcMain.handle('fetch-rating', async (_, appid: number) => {
+  const apiKey = store.get('apiKey');
+  const steamId = store.get('steamId');
+
+  if (!apiKey || !steamId) {
+    throw new Error('API key and Steam ID are required');
+  }
+
   const cached = store.get('ratings') || {};
   if (cached[appid]) return cached[appid];
 

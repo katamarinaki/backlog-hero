@@ -41,21 +41,32 @@ export const GameCardModal = ({ game, onClose }: Props) => {
   const [achieveTs, setAchieveTs] = useState<number | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    const appid = game.appid;
+
     const load = async () => {
-      if (!rating) {
-        const r = await window.electronAPI.fetchRating(game.appid);
-        if (r) setLazyRating(r);
+      try {
+        if (!rating) {
+          const r = await window.electronAPI.fetchRating(appid);
+          if (!cancelled && r) setLazyRating(r);
+        }
+        if (!achievements) {
+          const a = await window.electronAPI.fetchAchievement(appid);
+          if (!cancelled && a) setLazyAchievements(a);
+        }
+        const rt = await window.electronAPI.getRatingTimestamp(appid);
+        if (!cancelled) setRatingTs(rt ?? (rating ? Date.now() : null));
+        const at = await window.electronAPI.getAchievementTimestamp(appid);
+        if (!cancelled) setAchieveTs(at ?? (achievements ? Date.now() : null));
+      } catch (err) {
+        console.error('Failed to fetch game data:', err);
       }
-      if (!achievements) {
-        const a = await window.electronAPI.fetchAchievement(game.appid);
-        if (a) setLazyAchievements(a);
-      }
-      const rt = await window.electronAPI.getRatingTimestamp(game.appid);
-      setRatingTs(rt);
-      const at = await window.electronAPI.getAchievementTimestamp(game.appid);
-      setAchieveTs(at);
     };
     load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [game.appid, rating, achievements]);
 
   const displayRating = rating || lazyRating;
