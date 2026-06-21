@@ -9,6 +9,7 @@ import {
 } from 'react';
 import type { ReactNode } from 'react';
 
+import { isFetchStale } from '@shared/gameUtils';
 import type { GameAchievements, GameRating, GameStatus, StatusFilter, SteamGame } from 'types';
 
 type SortOption = 'playtime' | 'name' | 'rating' | 'last_played' | 'status_date';
@@ -132,14 +133,15 @@ export const GameProvider = ({ children }: GameProviderProps) => {
   }, []);
 
   // Auto-refresh library if last fetch was more than 6 hours ago
+  const hasAutoFetchedRef = useRef(false);
   useEffect(() => {
-    if (!hasSettings) return;
+    if (!hasSettings || hasAutoFetchedRef.current) return;
+    hasAutoFetchedRef.current = true;
 
     const checkAndFetch = async () => {
       try {
         const lastFetch = await window.electronAPI.getLastFetchTimestamp();
-        const sixHours = 6 * 60 * 60 * 1000;
-        if (Date.now() - lastFetch > sixHours) {
+        if (isFetchStale(lastFetch)) {
           const freshGames = await window.electronAPI.fetchGames();
           setGames(freshGames);
         }
