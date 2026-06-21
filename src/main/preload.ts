@@ -88,6 +88,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getNotes: (): Promise<Record<number, string>> => ipcRenderer.invoke('get-notes'),
   saveNote: (appid: number, note: string): Promise<boolean> =>
     ipcRenderer.invoke('save-note', { appid, note }),
+  getUserRatings: (): Promise<Record<number, number>> => ipcRenderer.invoke('get-user-ratings'),
+  saveUserRating: (appid: number, rating: number): Promise<boolean> =>
+    ipcRenderer.invoke('save-user-rating', { appid, rating }),
   getCompletions: (): Promise<Record<number, GameCompletion>> =>
     ipcRenderer.invoke('get-completions'),
   saveCompletion: (appid: number, completion: GameCompletion | null): Promise<boolean> =>

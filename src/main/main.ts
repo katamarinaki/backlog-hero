@@ -53,6 +53,7 @@ interface StoreSchema {
   games: SteamGame[];
   ratings: Record<number, GameRating>;
   ratingTimestamps: Record<number, number>;
+  userRatings: Record<number, number>;
   notes: Record<number, string>;
   completions: Record<number, GameCompletion>;
   statuses: Record<number, GameStatus>;
@@ -79,6 +80,7 @@ const defaultStoreData: StoreSchema = {
   games: [],
   ratings: {},
   ratingTimestamps: {},
+  userRatings: {},
   notes: {},
   completions: {},
   statuses: {},
@@ -411,6 +413,21 @@ ipcMain.handle('save-note', (_, { appid, note }: { appid: number; note: string }
   return true;
 });
 
+// IPC Handlers for user ratings
+ipcMain.handle('get-user-ratings', () => {
+  return store.get('userRatings') || {};
+});
+
+ipcMain.handle('save-user-rating', (_, { appid, rating }: { appid: number; rating: number }) => {
+  if (rating < 0 || rating > 100 || !Number.isInteger(rating)) {
+    throw new Error('Rating must be an integer between 0 and 100');
+  }
+  const userRatings = store.get('userRatings') || {};
+  userRatings[appid] = rating;
+  store.set('userRatings', userRatings);
+  return true;
+});
+
 // IPC Handlers for completions
 ipcMain.handle('get-completions', () => {
   return store.get('completions') || {};
@@ -651,6 +668,7 @@ function getBackupData(): StoreSchema {
     games: store.get('games'),
     ratings: store.get('ratings'),
     ratingTimestamps: store.get('ratingTimestamps'),
+    userRatings: store.get('userRatings'),
     notes: store.get('notes'),
     completions: store.get('completions'),
     statuses: store.get('statuses'),
