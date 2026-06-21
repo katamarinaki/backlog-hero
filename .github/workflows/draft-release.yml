@@ -22,17 +22,17 @@ jobs:
       - name: Auto-increment Version and Create Draft
         shell: bash
         run: |
-          # Get latest published release tag
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          # Get the latest published (non-draft, non-prerelease) release tag
+          LATEST_TAG=$(gh release list --limit 1 --exclude-drafts --exclude-pre-releases --json tagName -q '.[0].tagName' 2>/dev/null || echo "v0.0.0")
           V="${LATEST_TAG#v}"
           IFS='.' read -r MAJOR MINOR PATCH <<< "$V"
           NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
           NEW_TAG="v${NEW_VERSION}"
 
-          echo "Latest release: $LATEST_TAG"
-          echo "New draft:       $NEW_TAG"
+          echo "Last published release: $LATEST_TAG"
+          echo "New draft:              $NEW_TAG"
 
-          # Remove any existing draft with this tag
+          # Remove any existing draft release with this tag so we can recreate
           gh release delete "$NEW_TAG" --yes 2>/dev/null || true
           git push origin --delete "$NEW_TAG" 2>/dev/null || true
 
@@ -40,7 +40,7 @@ jobs:
           git tag "$NEW_TAG"
           git push origin "$NEW_TAG"
 
-          # Create draft release with auto-generated changelog since previous tag
+          # Create draft release with auto-generated changelog since the last published release
           gh release create "$NEW_TAG" \
             --draft \
             --generate-notes \
