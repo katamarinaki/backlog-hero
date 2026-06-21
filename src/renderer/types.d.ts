@@ -74,6 +74,8 @@ export interface ElectronAPI {
   getRatings: () => Promise<Record<number, GameRating>>;
   getNotes: () => Promise<Record<number, string>>;
   saveNote: (appid: number, note: string) => Promise<boolean>;
+  getUserRatings: () => Promise<Record<number, number>>;
+  saveUserRating: (appid: number, rating: number) => Promise<boolean>;
   getCompletions: () => Promise<Record<number, GameCompletion>>;
   saveCompletion: (appid: number, completion: GameCompletion | null) => Promise<boolean>;
   getStatuses: () => Promise<Record<number, GameStatus>>;
