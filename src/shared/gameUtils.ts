@@ -2,7 +2,7 @@
 export const STALE_THRESHOLD_MS = 6 * 60 * 60 * 1000;
 
 export function isFetchStale(lastFetchTimestamp: number, now?: number): boolean {
-  return (now ?? Date.now()) - lastFetchTimestamp > STALE_THRESHOLD_MS;
+  return (now ?? Date.now()) - lastFetchTimestamp >= STALE_THRESHOLD_MS;
 }
 
 export function formatPlaytime(minutes: number): string {

@@ -133,10 +133,8 @@ export const GameProvider = ({ children }: GameProviderProps) => {
   }, []);
 
   // Auto-refresh library if last fetch was more than 6 hours ago
-  const hasAutoFetchedRef = useRef(false);
   useEffect(() => {
-    if (!hasSettings || hasAutoFetchedRef.current) return;
-    hasAutoFetchedRef.current = true;
+    if (!hasSettings) return;
 
     const checkAndFetch = async () => {
       try {
@@ -150,7 +148,7 @@ export const GameProvider = ({ children }: GameProviderProps) => {
       }
     };
     checkAndFetch();
-  }, [hasSettings]);
+  }, [hasSettings, games.length]);
 
   const saveNote = useCallback(
     async (note: string) => {

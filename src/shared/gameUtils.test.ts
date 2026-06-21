@@ -12,10 +12,10 @@ describe('isFetchStale', () => {
     expect(isFetchStale(justNow, Date.now())).toBe(false);
   });
 
-  it('returns false when timestamp is exactly at the threshold', () => {
+  it('returns true when timestamp is exactly at the threshold', () => {
     const now = Date.now();
     const atThreshold = now - STALE_THRESHOLD_MS;
-    expect(isFetchStale(atThreshold, now)).toBe(false);
+    expect(isFetchStale(atThreshold, now)).toBe(true);
   });
 
   it('returns true when timestamp is older than threshold', () => {
