@@ -152,11 +152,7 @@ export const HomePage = () => {
             const rating = ratings[game.appid];
             const hasNote = !!notes[game.appid];
             const gameStatus = statuses[game.appid]?.status;
-            const isInProgress =
-              (sessions[game.appid]?.length ?? 0) > 0 &&
-              gameStatus !== 'completed' &&
-              gameStatus !== 'retired' &&
-              gameStatus !== 'dropped';
+            const isInProgress = (sessions[game.appid]?.length ?? 0) > 0 && !gameStatus;
             const STATUS_LABELS: Record<string, string> = {
               backlog: 'Backlog',
               completed: 'Completed',

@@ -312,16 +312,10 @@ export const GameProvider = ({ children }: GameProviderProps) => {
     Object.values(statuses).forEach((s) => {
       if (s.status && s.status in counts) counts[s.status]++;
     });
-    // in_progress is derived: has sessions, no terminal status
-    counts.in_progress = games.filter((g) => {
-      const s = statuses[g.appid]?.status;
-      return (
-        (sessions[g.appid]?.length ?? 0) > 0 &&
-        s !== 'completed' &&
-        s !== 'retired' &&
-        s !== 'dropped'
-      );
-    }).length;
+    // in_progress is derived: has sessions + no explicit status at all
+    counts.in_progress = games.filter(
+      (g) => (sessions[g.appid]?.length ?? 0) > 0 && !statuses[g.appid]?.status,
+    ).length;
     return counts;
   }, [statuses, sessions, games]);
 
@@ -339,15 +333,9 @@ export const GameProvider = ({ children }: GameProviderProps) => {
           (game) => !statuses[game.appid]?.status && !sessions[game.appid]?.length,
         );
       } else if (statusFilter === 'in_progress') {
-        result = result.filter((game) => {
-          const s = statuses[game.appid]?.status;
-          return (
-            (sessions[game.appid]?.length ?? 0) > 0 &&
-            s !== 'completed' &&
-            s !== 'retired' &&
-            s !== 'dropped'
-          );
-        });
+        result = result.filter(
+          (game) => (sessions[game.appid]?.length ?? 0) > 0 && !statuses[game.appid]?.status,
+        );
       } else {
         result = result.filter((game) => statuses[game.appid]?.status === statusFilter);
       }
