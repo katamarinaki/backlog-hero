@@ -242,6 +242,33 @@
   cursor: not-allowed;
 }
 
+/* Edit mode banner */
+.editBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.9rem;
+  color: var(--accent);
+}
+
+.editCancel {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0;
+}
+
+.editCancel:hover {
+  color: var(--text-primary);
+}
+
 /* History */
 .history {
   margin-top: 2rem;
@@ -268,7 +295,11 @@
   background-color: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 0.6rem 2rem 0.6rem 0.75rem;
+  padding: 0.6rem 4.5rem 0.6rem 0.75rem;
+}
+
+.sessionRowEditing {
+  border-color: var(--accent);
 }
 
 .sessionMain {
@@ -299,10 +330,16 @@
   white-space: pre-wrap;
 }
 
-.sessionDelete {
+.sessionActions {
   position: absolute;
   top: 0.5rem;
   right: 0.5rem;
+  display: flex;
+  gap: 0.25rem;
+}
+
+.sessionEdit,
+.sessionDelete {
   width: 1.5rem;
   height: 1.5rem;
   border: none;
@@ -310,7 +347,15 @@
   background: none;
   color: var(--text-secondary);
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sessionEdit:hover {
+  color: var(--accent);
+  background-color: rgba(0, 0, 0, 0.3);
 }
 
 .sessionDelete:hover {

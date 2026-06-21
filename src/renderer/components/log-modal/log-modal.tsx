@@ -50,16 +50,18 @@ export const LogModal = ({ game, onClose }: Props) => {
   );
 
   const currentRating = userRatings[game.appid];
+  const currentStatus = statuses[game.appid]?.status ?? null;
 
+  // Form state
   const [date, setDate] = useState(todayISO());
   const [hours, setHours] = useState(Math.floor(suggested / 60));
   const [minutes, setMinutes] = useState(suggested % 60);
-  // The rating slider defaults to the game's current shared rating.
   const [rating, setRating] = useState(currentRating ?? 50);
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const currentStatus = statuses[game.appid]?.status ?? null;
+  // Edit mode — when set, the form edits this session instead of creating a new one
+  const [editingSession, setEditingSession] = useState<GameSession | null>(null);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -69,37 +71,60 @@ export const LogModal = ({ game, onClose }: Props) => {
     return () => window.removeEventListener('keydown', handleEscape);
   }, [onClose]);
 
-  const totalMinutes = Math.max(0, hours) * 60 + Math.max(0, minutes);
-
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) onClose();
+  };
+
+  const totalMinutes = Math.max(0, hours) * 60 + Math.max(0, minutes);
+
+  const resetForm = () => {
+    setDate(todayISO());
+    setHours(Math.floor(suggested / 60));
+    setMinutes(suggested % 60);
+    setRating(currentRating ?? 50);
+    setNotes('');
+    setEditingSession(null);
+  };
+
+  const startEdit = (s: GameSession) => {
+    setEditingSession(s);
+    setDate(s.date);
+    setHours(Math.floor(s.minutes / 60));
+    setMinutes(s.minutes % 60);
+    setRating(s.rating ?? currentRating ?? 50);
+    setNotes(s.notes ?? '');
+    // Scroll form into view
+    window.scrollTo({ top: 0 });
   };
 
   const handleSave = async () => {
     if (totalMinutes <= 0 || saving) return;
     setSaving(true);
     try {
-      const session: GameSession = {
-        id: crypto.randomUUID(),
-        appid: game.appid,
-        date,
-        minutes: totalMinutes,
-        rating,
-        notes: notes.trim() || undefined,
-      };
-      await saveSession(game.appid, session);
-
-      // Fold the session rating into the shared game rating (existing rating
-      // counts as one session).
-      const newRating = computeSharedRating(currentRating ?? null, rating);
-      await saveUserRating(game.appid, newRating);
-
-      // Reset the form: length -> remaining unlogged time, rating -> new shared.
-      const remaining = Math.max(0, suggested - totalMinutes);
-      setHours(Math.floor(remaining / 60));
-      setMinutes(remaining % 60);
-      setRating(newRating);
-      setNotes('');
+      if (editingSession) {
+        // Update existing session — no rating recalculation (just correcting data)
+        await saveSession(game.appid, {
+          ...editingSession,
+          date,
+          minutes: totalMinutes,
+          rating,
+          notes: notes.trim() || undefined,
+        });
+      } else {
+        // New session
+        await saveSession(game.appid, {
+          id: crypto.randomUUID(),
+          appid: game.appid,
+          date,
+          minutes: totalMinutes,
+          rating,
+          notes: notes.trim() || undefined,
+        });
+        // Fold into shared game rating
+        const newRating = computeSharedRating(currentRating ?? null, rating);
+        await saveUserRating(game.appid, newRating);
+      }
+      onClose();
     } finally {
       setSaving(false);
     }
@@ -142,6 +167,16 @@ export const LogModal = ({ game, onClose }: Props) => {
             {game.playtime_2weeks ? ` · ${formatPlaytime(game.playtime_2weeks)} last 2 weeks` : ''}
           </p>
 
+          {/* Form heading changes in edit mode */}
+          {editingSession && (
+            <div className={styles.editBanner}>
+              <span>Editing session from {formatSessionDate(editingSession.date)}</span>
+              <button type="button" className={styles.editCancel} onClick={resetForm}>
+                Cancel
+              </button>
+            </div>
+          )}
+
           {/* Session length */}
           <section className={styles.field}>
             <label className={styles.fieldLabel}>Session length</label>
@@ -166,9 +201,11 @@ export const LogModal = ({ game, onClose }: Props) => {
                 <span>m</span>
               </div>
             </div>
-            <p className={styles.hint}>
-              Suggested: {formatPlaytime(suggested)} (unlogged Steam time, last 2 weeks)
-            </p>
+            {!editingSession && (
+              <p className={styles.hint}>
+                Suggested: {formatPlaytime(suggested)} (unlogged Steam time, last 2 weeks)
+              </p>
+            )}
           </section>
 
           {/* Date */}
@@ -207,11 +244,13 @@ export const LogModal = ({ game, onClose }: Props) => {
               <span>0</span>
               <span>100</span>
             </div>
-            <p className={styles.hint}>
-              {currentRating == null
-                ? 'Sets the game rating'
-                : `Averages into the game rating (currently ${currentRating})`}
-            </p>
+            {!editingSession && (
+              <p className={styles.hint}>
+                {currentRating == null
+                  ? 'Sets the game rating'
+                  : `Averages into the game rating (currently ${currentRating})`}
+              </p>
+            )}
           </section>
 
           {/* Notes */}
@@ -253,7 +292,7 @@ export const LogModal = ({ game, onClose }: Props) => {
               onClick={handleSave}
               disabled={totalMinutes <= 0 || saving}
             >
-              {saving ? 'Logging…' : 'Log session'}
+              {saving ? 'Saving…' : editingSession ? 'Update session' : 'Log session'}
             </button>
           </div>
 
@@ -265,7 +304,10 @@ export const LogModal = ({ game, onClose }: Props) => {
                 {[...gameSessions]
                   .sort((a, b) => b.date.localeCompare(a.date))
                   .map((s) => (
-                    <li key={s.id} className={styles.sessionRow}>
+                    <li
+                      key={s.id}
+                      className={`${styles.sessionRow} ${editingSession?.id === s.id ? styles.sessionRowEditing : ''}`}
+                    >
                       <div className={styles.sessionMain}>
                         <span className={styles.sessionDate}>{formatSessionDate(s.date)}</span>
                         <span className={styles.sessionLength}>{formatPlaytime(s.minutes)}</span>
@@ -274,14 +316,24 @@ export const LogModal = ({ game, onClose }: Props) => {
                         )}
                       </div>
                       {s.notes && <p className={styles.sessionNotes}>{s.notes}</p>}
-                      <button
-                        className={styles.sessionDelete}
-                        onClick={() => deleteSession(game.appid, s.id)}
-                        aria-label="Delete session"
-                        title="Delete session"
-                      >
-                        ✕
-                      </button>
+                      <div className={styles.sessionActions}>
+                        <button
+                          className={styles.sessionEdit}
+                          onClick={() => startEdit(s)}
+                          aria-label="Edit session"
+                          title="Edit session"
+                        >
+                          ✎
+                        </button>
+                        <button
+                          className={styles.sessionDelete}
+                          onClick={() => deleteSession(game.appid, s.id)}
+                          aria-label="Delete session"
+                          title="Delete session"
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </li>
                   ))}
               </ul>
