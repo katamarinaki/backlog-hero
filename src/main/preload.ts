@@ -78,10 +78,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveSettings: (settings: Settings): Promise<boolean> =>
     ipcRenderer.invoke('save-settings', settings),
   fetchGames: (): Promise<SteamGame[]> => ipcRenderer.invoke('fetch-games'),
-  fetchRecentActivity: (): Promise<
-    { appid: number; name: string; playtime_2weeks: number }[]
-  > => ipcRenderer.invoke('fetch-recent-activity'),
   getGames: (): Promise<SteamGame[]> => ipcRenderer.invoke('get-games'),
+  getLastFetchTimestamp: (): Promise<number> => ipcRenderer.invoke('get-last-fetch-timestamp'),
   fetchRatings: (appids: number[]): Promise<Record<number, GameRating>> =>
     ipcRenderer.invoke('fetch-ratings', appids),
   getRatings: (): Promise<Record<number, GameRating>> => ipcRenderer.invoke('get-ratings'),

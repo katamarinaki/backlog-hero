@@ -43,7 +43,6 @@ interface GameContextValue {
   saveNote: (note: string) => Promise<void>;
   saveStatus: (status: GameStatus | null) => Promise<void>;
   refreshLibrary: () => Promise<void>;
-  fetchRecentActivity: () => Promise<void>;
   fetchRatings: () => Promise<void>;
   fetchAchievements: () => Promise<void>;
 
@@ -132,31 +131,24 @@ export const GameProvider = ({ children }: GameProviderProps) => {
     loadData();
   }, []);
 
-  // Fetch recent activity on startup (silent — no loading indicator)
+  // Auto-refresh library if last fetch was more than 6 hours ago
   useEffect(() => {
-    if (!hasSettings || games.length === 0) return;
-    window.electronAPI
-      .fetchRecentActivity()
-      .then((recentGames) => {
-        if (recentGames.length > 0) {
-          setGames((prev) => {
-            const updated = [...prev];
-            for (const recent of recentGames) {
-              const idx = updated.findIndex((g) => g.appid === recent.appid);
-              if (idx !== -1) {
-                updated[idx] = {
-                  ...updated[idx],
-                  playtime_forever: recent.playtime_forever,
-                  playtime_2weeks: recent.playtime_2weeks || undefined,
-                };
-              }
-            }
-            return updated;
-          });
+    if (!hasSettings) return;
+
+    const checkAndFetch = async () => {
+      try {
+        const lastFetch = await window.electronAPI.getLastFetchTimestamp();
+        const sixHours = 6 * 60 * 60 * 1000;
+        if (Date.now() - lastFetch > sixHours) {
+          const freshGames = await window.electronAPI.fetchGames();
+          setGames(freshGames);
         }
-      })
-      .catch((err) => console.error('Failed to fetch recent activity:', err));
-  }, [hasSettings, games.length]);
+      } catch (err) {
+        console.error('Failed to auto-refresh library:', err);
+      }
+    };
+    checkAndFetch();
+  }, [hasSettings]);
 
   const saveNote = useCallback(
     async (note: string) => {
@@ -229,31 +221,6 @@ export const GameProvider = ({ children }: GameProviderProps) => {
       setRatings(fetchedRatings);
     } finally {
       setSyncLoading(null);
-    }
-  }, [games]);
-
-  const fetchRecentActivityAction = useCallback(async () => {
-    if (games.length === 0) return;
-    try {
-      const recentGames = await window.electronAPI.fetchRecentActivity();
-      if (recentGames.length > 0) {
-        setGames((prev) => {
-          const updated = [...prev];
-          for (const recent of recentGames) {
-            const idx = updated.findIndex((g) => g.appid === recent.appid);
-            if (idx !== -1) {
-              updated[idx] = {
-                ...updated[idx],
-                playtime_forever: recent.playtime_forever,
-                playtime_2weeks: recent.playtime_2weeks || undefined,
-              };
-            }
-          }
-          return updated;
-        });
-      }
-    } catch (err) {
-      console.error('Failed to fetch recent activity:', err);
     }
   }, [games]);
 
@@ -367,7 +334,6 @@ export const GameProvider = ({ children }: GameProviderProps) => {
     saveNote,
     saveStatus,
     refreshLibrary,
-    fetchRecentActivity: fetchRecentActivityAction,
     fetchRatings: fetchRatingsAction,
     fetchAchievements: fetchAchievementsAction,
     syncLoading,

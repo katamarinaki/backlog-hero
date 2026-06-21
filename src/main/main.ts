@@ -58,6 +58,7 @@ interface StoreSchema {
   achievements: Record<number, GameAchievements>;
   filterPreferences: FilterPreferences;
   useBetaUpdates: boolean;
+  lastFetchTimestamp: number;
 }
 
 interface SteamGame {
@@ -85,6 +86,7 @@ const defaultStoreData: StoreSchema = {
     sortAsc: false,
   },
   useBetaUpdates: false,
+  lastFetchTimestamp: 0,
 };
 
 const store = new Store<StoreSchema>({
@@ -242,70 +244,8 @@ ipcMain.handle('fetch-games', async () => {
           if (parsed.response && parsed.response.games) {
             const games = parsed.response.games as SteamGame[];
             store.set('games', games);
+            store.set('lastFetchTimestamp', Date.now());
             resolve(games);
-          } else {
-            reject(new Error('Invalid response from Steam API'));
-          }
-        } catch {
-          reject(new Error('Failed to parse Steam API response'));
-        }
-      });
-    });
-
-    request.on('error', (error) => {
-      reject(error);
-    });
-
-    request.end();
-  });
-});
-
-// IPC Handler for fetching recent activity
-ipcMain.handle('fetch-recent-activity', async () => {
-  const apiKey = store.get('apiKey');
-  const steamId = store.get('steamId');
-
-  if (!apiKey || !steamId) {
-    throw new Error('API key and Steam ID are required');
-  }
-
-  const url = `https://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v1/?key=${apiKey}&steamid=${steamId}&format=json`;
-
-  return new Promise((resolve, reject) => {
-    const request = net.request(url);
-    let data = '';
-
-    request.on('response', (response) => {
-      response.on('data', (chunk) => {
-        data += chunk.toString();
-      });
-
-      response.on('end', () => {
-        try {
-          const parsed = JSON.parse(data);
-          if (parsed.response && parsed.response.games) {
-            const recentGames = parsed.response.games as {
-              appid: number;
-              name: string;
-              playtime_forever: number;
-              playtime_2weeks: number;
-              img_icon_url: string;
-              img_logo_url: string;
-            }[];
-
-            // Merge playtime_2weeks into stored games
-            const games = store.get('games') || [];
-            const gamesById = new Map(games.map((g) => [g.appid, g]));
-            for (const recent of recentGames) {
-              const existing = gamesById.get(recent.appid);
-              if (existing) {
-                existing.playtime_2weeks = recent.playtime_2weeks || undefined;
-                existing.playtime_forever = recent.playtime_forever;
-                existing.rtime_last_played = Math.floor(Date.now() / 1000);
-              }
-            }
-            store.set('games', games);
-            resolve(recentGames);
           } else {
             reject(new Error('Invalid response from Steam API'));
           }
@@ -326,6 +266,11 @@ ipcMain.handle('fetch-recent-activity', async () => {
 // IPC Handler for getting cached games
 ipcMain.handle('get-games', () => {
   return store.get('games');
+});
+
+// IPC Handler for last fetch timestamp
+ipcMain.handle('get-last-fetch-timestamp', () => {
+  return store.get('lastFetchTimestamp', 0);
 });
 
 // Helper to get rating description based on score
@@ -646,6 +591,7 @@ function getBackupData(): StoreSchema {
     achievements: store.get('achievements'),
     filterPreferences: store.get('filterPreferences'),
     useBetaUpdates: store.get('useBetaUpdates', false),
+    lastFetchTimestamp: store.get('lastFetchTimestamp', 0),
   };
 }
 
