@@ -64,6 +64,7 @@ jobs:
           name: release-${{ matrix.os }}
           path: |
             release/**/*.dmg
+            release/**/*.zip
             release/**/*Setup*.exe
             release/**/*.AppImage
             release/**/*.blockmap
@@ -119,6 +120,7 @@ jobs:
             - Auto-update files (`latest*.yml`, `app-update.yml`, `*.blockmap`) are for the app and can be ignored.
           artifacts: |
             release-artifacts/**/*.dmg
+            release-artifacts/**/*.zip
             release-artifacts/**/*.AppImage
             release-artifacts/**/*.blockmap
             release-artifacts/**/latest*.yml

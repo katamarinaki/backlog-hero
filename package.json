@@ -71,7 +71,8 @@
     },
     "mac": {
       "target": [
-        "dmg"
+        "dmg",
+        "zip"
       ],
       "artifactName": "Backlog-Hero-${version}.${ext}",
       "category": "public.app-category.games"
