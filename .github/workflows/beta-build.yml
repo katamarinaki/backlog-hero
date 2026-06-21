@@ -8,6 +8,12 @@ on:
 permissions:
   contents: write
 
+# Serialise runs so two pushes to develop never publish to the rolling `beta`
+# release at the same time (which would race on asset delete/upload).
+concurrency:
+  group: beta-release
+  cancel-in-progress: false
+
 jobs:
   build:
     name: Build (${{ matrix.os }})
@@ -72,6 +78,26 @@ jobs:
         with:
           path: beta-artifacts
           merge-multiple: true
+
+      # The `beta` release is a rolling prerelease. ncipollo's replacesArtifacts
+      # deletes each existing same-named asset individually before re-uploading,
+      # which intermittently 404s (asset-replace race) and then aborts *before*
+      # uploading the new latest*.yml / app-update.yml — leaving the auto-update
+      # feed broken. Wipe all existing assets up front (tolerating per-asset
+      # 404s) so the upload always starts from a clean slate.
+      - name: Clear old beta assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view beta >/dev/null 2>&1; then
+            gh release view beta --json assets -q '.assets[].name' | while read -r asset; do
+              [ -z "$asset" ] && continue
+              echo "Deleting old beta asset: $asset"
+              gh release delete-asset beta "$asset" --yes || true
+            done
+          else
+            echo "No existing beta release — nothing to clean."
+          fi
 
       - name: Update Beta Release
         uses: ncipollo/release-action@v1
