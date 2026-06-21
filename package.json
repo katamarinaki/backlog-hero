@@ -98,7 +98,7 @@
         "repo": "backlog-hero"
       }
     ],
-    "afterSign": "./scripts/after-pack.js"
+    "afterPack": "./scripts/after-pack.js"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
