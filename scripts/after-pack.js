@@ -1,23 +1,30 @@
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 
 /**
  * Strips the ad-hoc code signature from the macOS app bundle before packaging.
- * Squirrel.Mac validates signatures on updates — without a real developer cert,
- * the ad-hoc signature produces bogus CodeResources that fail validation with:
- *   'code has no resources but signature indicates they must be present'
- *
- * Removing the signature lets Squirrel install the update without validation.
- * macOS creates a fresh ad-hoc signature when the app first launches.
+ * Squirrel.Mac validates signatures on downloaded updates — without a real
+ * Developer ID cert, this fails. Removing the signature lets Squirrel
+ * skip validation entirely.
  */
-exports.default = async function (context) {
-  if (context.electronPlatformName !== 'darwin') return;
+module.exports = async function (context) {
+  // Write proof file so CI logs confirm the hook ran
+  const proofPath = path.join(context.outDir, '.afterpack-hook-ran');
+  fs.writeFileSync(proofPath, new Date().toISOString());
+  console.log('>>> afterPack hook STARTED');
+
+  if (context.electronPlatformName !== 'darwin') {
+    console.log('>>> afterPack: not macOS, skipping');
+    return;
+  }
 
   const appPath = path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`);
-  const sigDir = path.join(appPath, 'Contents', '_CodeSignature');
 
-  if (fs.existsSync(sigDir)) {
-    fs.rmSync(sigDir, { recursive: true, force: true });
-    console.log(`Stripped _CodeSignature from ${appPath}`);
+  try {
+    execSync(`codesign --remove-signature "${appPath}"`, { stdio: 'pipe' });
+    console.log(`>>> afterPack: removed signature from ${appPath}`);
+  } catch {
+    console.log(`>>> afterPack: no signature to remove (OK)`);
   }
 };
