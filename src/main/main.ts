@@ -310,9 +310,11 @@ async function fetchGameRating(appid: number): Promise<GameRating | null> {
 }
 
 // IPC Handler for fetching ratings (batch)
-ipcMain.handle('fetch-ratings', async (_, appids: number[]) => {
+ipcMain.handle('fetch-ratings', async (event, appids: number[]) => {
   const cachedRatings = store.get('ratings') || {};
   const newRatings: Record<number, GameRating> = { ...cachedRatings };
+  const totalToFetch = appids.filter((id) => !cachedRatings[id]).length;
+  let fetched = 0;
 
   // Fetch ratings in batches to avoid overwhelming the API
   const batchSize = 5;
@@ -321,6 +323,8 @@ ipcMain.handle('fetch-ratings', async (_, appids: number[]) => {
     const promises = batch.map(async (appid) => {
       if (!cachedRatings[appid]) {
         const rating = await fetchGameRating(appid);
+        fetched++;
+        event.sender.send('fetch-ratings-progress', { fetched, total: totalToFetch });
         if (rating) {
           newRatings[appid] = rating;
         }
@@ -437,7 +441,7 @@ async function fetchGameAchievements(
 }
 
 // IPC Handler for fetching achievements (batch)
-ipcMain.handle('fetch-achievements', async (_, appids: number[]) => {
+ipcMain.handle('fetch-achievements', async (event, appids: number[]) => {
   const apiKey = store.get('apiKey');
   const steamId = store.get('steamId');
 
@@ -447,6 +451,8 @@ ipcMain.handle('fetch-achievements', async (_, appids: number[]) => {
 
   const cachedAchievements = store.get('achievements') || {};
   const newAchievements: Record<number, GameAchievements> = { ...cachedAchievements };
+  const totalToFetch = appids.filter((id) => !cachedAchievements[id]).length;
+  let fetched = 0;
 
   // Fetch achievements in batches
   const batchSize = 5;
@@ -455,6 +461,8 @@ ipcMain.handle('fetch-achievements', async (_, appids: number[]) => {
     const promises = batch.map(async (appid) => {
       if (!cachedAchievements[appid]) {
         const achievements = await fetchGameAchievements(appid, apiKey, steamId);
+        fetched++;
+        event.sender.send('fetch-achievements-progress', { fetched, total: totalToFetch });
         if (achievements) {
           newAchievements[appid] = achievements;
         }
