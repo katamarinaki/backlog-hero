@@ -34,7 +34,9 @@ export const GameCardModal = ({ game, onClose }: Props) => {
 
   // Lazy fetch rating + achievements for this game
   const [lazyRating, setLazyRating] = useState<typeof rating | undefined>(undefined);
-  const [lazyAchievements, setLazyAchievements] = useState<typeof achievements | undefined>(undefined);
+  const [lazyAchievements, setLazyAchievements] = useState<typeof achievements | undefined>(
+    undefined,
+  );
   const [ratingTs, setRatingTs] = useState<number | null>(null);
   const [achieveTs, setAchieveTs] = useState<number | null>(null);
 
@@ -293,14 +295,15 @@ export const GameCardModal = ({ game, onClose }: Props) => {
                   {displayAchievements.total > 0 && (
                     <span className={styles.achievementPercent}>
                       {' '}
-                      ({Math.round((displayAchievements.achieved / displayAchievements.total) * 100)}%)
+                      (
+                      {Math.round((displayAchievements.achieved / displayAchievements.total) * 100)}
+                      %)
                     </span>
                   )}
                 </span>
                 {achieveTs && (
                   <span className={styles.lastUpdated}>
-                    Updated{' '}
-                    {new Date(achieveTs).toLocaleDateString()}
+                    Updated {new Date(achieveTs).toLocaleDateString()}
                   </span>
                 )}
               </div>
@@ -312,7 +315,10 @@ export const GameCardModal = ({ game, onClose }: Props) => {
               className={styles.modalRating}
               style={{ borderColor: getRatingColor(displayRating.score) }}
             >
-              <div className={styles.ratingHeader} style={{ color: getRatingColor(displayRating.score) }}>
+              <div
+                className={styles.ratingHeader}
+                style={{ color: getRatingColor(displayRating.score) }}
+              >
                 {displayRating.description}
               </div>
               <div className={styles.ratingDetails}>

@@ -369,4 +369,8 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
-.lastUpdated { font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem; }
+.lastUpdated {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
