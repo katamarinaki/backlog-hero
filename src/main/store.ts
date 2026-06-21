@@ -21,6 +21,7 @@ export interface StoreSchema {
   statuses: Record<number, GameStatus>;
   achievements: Record<number, GameAchievements>;
   achievementTimestamps: Record<number, number>;
+  coverUrls: Record<number, string>;
   filterPreferences: FilterPreferences;
   useBetaUpdates: boolean;
   lastFetchTimestamp: number;
@@ -38,6 +39,7 @@ export const STORE_DEFAULTS: StoreSchema = {
   statuses: {},
   achievements: {},
   achievementTimestamps: {},
+  coverUrls: {},
   filterPreferences: {
     statusFilter: 'all',
     sortBy: 'playtime',

@@ -1,5 +1,6 @@
 import { net } from 'electron';
 
+import { buildLibraryCapsuleUrl } from '../shared/logUtils';
 import type { GameAchievements, GameRating, SteamGame } from '../shared/types';
 
 // --- Shared fetch helper ---
@@ -161,6 +162,52 @@ export async function fetchGameRating(appid: number): Promise<GameRating | null>
   const score = total > 0 ? Math.round((positive / total) * 100) : 0;
 
   return { positive, negative, total, score, description: getRatingDescription(score) };
+}
+
+interface GetItemsResponse {
+  response?: {
+    store_items?: Array<{
+      appid?: number;
+      id?: number;
+      assets?: { asset_url_format?: string; library_capsule?: string };
+    }>;
+  };
+}
+
+/**
+ * Resolves vertical library-capsule (cover) URLs for the given appids via the
+ * public IStoreBrowseService/GetItems endpoint. Handles both legacy and newer
+ * hash-pathed assets that can't be guessed from the appid alone. Batched into a
+ * single request; returns a map of appid -> cover URL (missing/unknown omitted).
+ */
+export async function fetchCoverUrls(appids: number[]): Promise<Record<number, string>> {
+  if (appids.length === 0) return {};
+
+  const input = {
+    ids: appids.map((appid) => ({ appid })),
+    context: { language: 'english', country_code: 'US' },
+    data_request: { include_assets: true },
+  };
+  const url = `https://api.steampowered.com/IStoreBrowseService/GetItems/v1/?input_json=${encodeURIComponent(
+    JSON.stringify(input),
+  )}`;
+
+  const result = await steamFetchWithRetry<GetItemsResponse>(url, 15_000, 1);
+  const items = result.data?.response?.store_items;
+  if (!items) {
+    throw new Error(result.error || 'Failed to fetch cover assets');
+  }
+
+  const covers: Record<number, string> = {};
+  for (const item of items) {
+    const appid = item.appid ?? item.id;
+    const coverUrl = buildLibraryCapsuleUrl(
+      item.assets?.asset_url_format,
+      item.assets?.library_capsule,
+    );
+    if (appid && coverUrl) covers[appid] = coverUrl;
+  }
+  return covers;
 }
 
 export async function fetchGameAchievements(

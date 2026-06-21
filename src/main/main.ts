@@ -14,7 +14,12 @@ import type {
 import { store, STORE_DEFAULTS, type StoreSchema } from './store';
 import { migrateCompletionsToStatuses } from './migration';
 import { initAutoUpdater, toggleBetaFeed, installUpdate } from './updater';
-import { fetchOwnedGames, fetchGameRating, fetchGameAchievements } from './steam-api';
+import {
+  fetchOwnedGames,
+  fetchGameRating,
+  fetchGameAchievements,
+  fetchCoverUrls,
+} from './steam-api';
 
 // --- Debug IPC ---
 
@@ -173,6 +178,28 @@ ipcMain.handle('fetch-games', async () => {
 });
 
 ipcMain.handle('get-games', () => store.get('games'));
+
+// Resolves vertical cover URLs (cached), fetching only the appids we don't know yet.
+ipcMain.handle('resolve-covers', async (_, appids: unknown) => {
+  if (!Array.isArray(appids)) {
+    throw new Error('appids must be an array');
+  }
+  const ids = appids.filter((id): id is number => typeof id === 'number');
+  const cached = store.get('coverUrls', {});
+  const missing = ids.filter((id) => !(id in cached));
+
+  if (missing.length === 0) return cached;
+
+  try {
+    const fetched = await fetchCoverUrls(missing);
+    const merged = { ...cached, ...fetched };
+    store.set('coverUrls', merged);
+    return merged;
+  } catch (err) {
+    console.error('Failed to resolve cover URLs:', err);
+    return cached;
+  }
+});
 
 ipcMain.handle('get-last-fetch-timestamp', () => store.get('lastFetchTimestamp', 0));
 
@@ -419,6 +446,7 @@ function getBackupData(): StoreSchema {
     statuses: store.get('statuses'),
     achievements: store.get('achievements'),
     achievementTimestamps: store.get('achievementTimestamps'),
+    coverUrls: store.get('coverUrls'),
     filterPreferences: store.get('filterPreferences'),
     useBetaUpdates: store.get('useBetaUpdates', false),
     lastFetchTimestamp: store.get('lastFetchTimestamp', 0),

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { GameCardModal } from 'components/game-card-modal';
@@ -8,12 +8,23 @@ import { getRecentActivity } from '../../../shared/logUtils';
 import { formatPlaytime } from '../../../shared/gameUtils';
 
 import styles from './log-page.module.css';
-import { getVerticalCoverUrl, getHeaderImageUrl } from './utils';
+import { CoverImage } from './cover-image';
 
 export const LogPage = () => {
   const { games, hasSettings, selectedGame, setSelectedGame } = useGameContext();
 
   const recentActivity = useMemo(() => getRecentActivity(games), [games]);
+
+  // Resolve accurate vertical cover URLs (handles newer hash-pathed assets).
+  const [coverUrls, setCoverUrls] = useState<Record<number, string>>({});
+  useEffect(() => {
+    if (recentActivity.length === 0) return;
+    const appids = recentActivity.map((g) => g.appid);
+    window.electronAPI
+      .resolveCovers(appids)
+      .then(setCoverUrls)
+      .catch((err) => console.error('Failed to resolve covers:', err));
+  }, [recentActivity]);
 
   if (!hasSettings) {
     return (
@@ -54,16 +65,10 @@ export const LogPage = () => {
                 title={game.name}
               >
                 <div className={styles.recentCover}>
-                  <img
-                    src={getVerticalCoverUrl(game.appid)}
-                    alt={game.name}
-                    loading="lazy"
-                    onError={(e) => {
-                      const img = e.currentTarget;
-                      if (img.dataset.fallback) return;
-                      img.dataset.fallback = 'true';
-                      img.src = getHeaderImageUrl(game.appid);
-                    }}
+                  <CoverImage
+                    appid={game.appid}
+                    name={game.name}
+                    resolvedUrl={coverUrls[game.appid]}
                   />
                 </div>
                 <div className={styles.recentName}>{game.name}</div>

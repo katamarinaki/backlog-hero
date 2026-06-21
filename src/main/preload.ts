@@ -46,6 +46,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('save-settings', settings),
   fetchGames: (): Promise<SteamGame[]> => ipcRenderer.invoke('fetch-games'),
   getGames: (): Promise<SteamGame[]> => ipcRenderer.invoke('get-games'),
+  resolveCovers: (appids: number[]): Promise<Record<number, string>> =>
+    ipcRenderer.invoke('resolve-covers', appids),
   getLastFetchTimestamp: (): Promise<number> => ipcRenderer.invoke('get-last-fetch-timestamp'),
   fetchRatings: (appids: number[]): Promise<Record<number, GameRating>> =>
     ipcRenderer.invoke('fetch-ratings', appids),
