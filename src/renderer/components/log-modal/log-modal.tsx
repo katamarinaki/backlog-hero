@@ -93,8 +93,6 @@ export const LogModal = ({ game, onClose }: Props) => {
     setMinutes(s.minutes % 60);
     setRating(s.rating ?? currentRating ?? 50);
     setNotes(s.notes ?? '');
-    // Scroll form into view
-    window.scrollTo({ top: 0 });
   };
 
   const handleSave = async () => {

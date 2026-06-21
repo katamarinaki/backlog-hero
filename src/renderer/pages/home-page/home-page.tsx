@@ -8,8 +8,15 @@ import type { StatusFilter, SteamGame } from 'types';
 
 import { formatPlaytime } from '../../../shared/gameUtils';
 
-import styles from './home-page.module.css';
 import { getGameCover, getRatingColor } from './utils';
+import styles from './home-page.module.css';
+
+const STATUS_LABELS: Record<string, string> = {
+  backlog: 'Backlog',
+  completed: 'Completed',
+  retired: 'Retired',
+  dropped: 'Dropped',
+};
 
 export const HomePage = () => {
   const {
@@ -157,12 +164,6 @@ export const HomePage = () => {
             const hasNote = !!notes[game.appid];
             const gameStatus = statuses[game.appid]?.status;
             const isInProgress = (sessions[game.appid]?.length ?? 0) > 0 && !gameStatus;
-            const STATUS_LABELS: Record<string, string> = {
-              backlog: 'Backlog',
-              completed: 'Completed',
-              retired: 'Retired',
-              dropped: 'Dropped',
-            };
             return (
               <div
                 key={game.appid}

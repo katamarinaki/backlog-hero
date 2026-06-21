@@ -1,14 +1,18 @@
 # Backlog Hero
 
-Backlog Hero is an Electron desktop app for browsing your Steam library and keeping lightweight notes and completion status per game.
+Backlog Hero is an Electron desktop app for browsing your Steam library with notes, session logging, ratings, and game status tracking.
 
 ## Features
 
 - Fetches your owned games from the Steam Web API
-- Caches library, ratings, achievements, notes, and completion state locally
-- Search, sort, and filter by completion status, playtime, rating, and last played
-- Game detail modal with playtime, last played, achievements, and store link
-- Per-game notes and completion date tracking
+- Caches library, ratings, achievements, notes, statuses, and sessions locally
+- **Library** — search, sort, and filter; game detail modal with playtime, achievements, store link, notes, and status
+- **Log** — recent activity (games played in the last 2 weeks) and a full session timeline
+  - Log a gaming session (length, date, personal rating 0–100, notes) from any game card
+  - Session rating averages into the game's shared rating
+  - Suggested session length auto-calculated from Steam's 2-week playtime minus already-logged time
+- **Status system** — Backlog · Completed · Retired (for endless games) · Dropped; _In Progress_ is derived automatically from logged sessions
+- Per-game notes and personal ratings
 
 ## Requirements
 
