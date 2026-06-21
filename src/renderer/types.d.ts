@@ -56,7 +56,14 @@ export interface FilterPreferences {
   sortAsc: boolean;
 }
 
+export interface FetchProgress {
+  fetched: number;
+  total: number;
+}
+
 export interface ElectronAPI {
+  onRatingsProgress: (callback: (progress: FetchProgress) => void) => () => void;
+  onAchievementsProgress: (callback: (progress: FetchProgress) => void) => () => void;
   getSettings: () => Promise<Settings>;
   saveSettings: (settings: Settings) => Promise<boolean>;
   fetchGames: () => Promise<SteamGame[]>;

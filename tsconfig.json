@@ -19,8 +19,9 @@
     "paths": {
       "components/*": ["components/*"],
       "pages/*": ["pages/*"],
-      "context/*": ["context/*"]
+      "context/*": ["context/*"],
+      "@shared/*": ["../shared/*"]
     }
   },
-  "include": ["src/renderer"]
+  "include": ["src/renderer", "src/shared"]
 }
