@@ -1,23 +1,22 @@
-const fs = require('fs');
+const { execSync } = require('child_process');
 const path = require('path');
 
 /**
- * Strips the ad-hoc code signature from the macOS app bundle before packaging.
- * Squirrel.Mac validates signatures on updates — without a real developer cert,
- * the ad-hoc signature produces bogus CodeResources that fail validation with:
- *   'code has no resources but signature indicates they must be present'
- *
- * Removing the signature lets Squirrel install the update without validation.
- * macOS creates a fresh ad-hoc signature when the app first launches.
+ * Removes ALL code signatures from the macOS app bundle before packaging.
+ * Squirrel.Mac recursively validates signatures — the Electron framework binaries
+ * carry embedded signatures even when _CodeSignature folders are deleted.
+ * codesign --deep --remove-signature strips both folder-based and embedded sigs.
  */
-exports.default = async function (context) {
+module.exports = async function (context) {
   if (context.electronPlatformName !== 'darwin') return;
 
   const appPath = path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`);
-  const sigDir = path.join(appPath, 'Contents', '_CodeSignature');
 
-  if (fs.existsSync(sigDir)) {
-    fs.rmSync(sigDir, { recursive: true, force: true });
-    console.log(`Stripped _CodeSignature from ${appPath}`);
+  try {
+    execSync(`codesign --deep --remove-signature "${appPath}"`, { stdio: 'pipe' });
+    console.log(`afterPack: removed all signatures from ${appPath}`);
+  } catch (e) {
+    // Signature might not exist — that's fine
+    console.log(`afterPack: no signatures to remove from ${appPath} (OK)`);
   }
 };
