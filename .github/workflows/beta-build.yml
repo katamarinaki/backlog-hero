@@ -55,6 +55,7 @@ jobs:
           name: beta-${{ matrix.os }}
           path: |
             release/**/*.dmg
+            release/**/*.zip
             release/**/*Setup*.exe
             release/**/*.AppImage
             release/**/*.blockmap
@@ -89,6 +90,7 @@ jobs:
             To use: enable **Use beta updates** in the app settings.
           artifacts: |
             beta-artifacts/**/*.dmg
+            beta-artifacts/**/*.zip
             beta-artifacts/**/*.AppImage
             beta-artifacts/**/*.blockmap
             beta-artifacts/**/latest*.yml
