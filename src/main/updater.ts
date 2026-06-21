@@ -148,7 +148,14 @@ export function installUpdate(): boolean {
   const exePath = app.getPath('exe');
   const installedAppPath = deriveAppBundlePath(exePath) ?? path.dirname(exePath);
 
-  // Helper script: wait for us to quit, replace the bundle, relaunch.
+  // Helper script: wait for us to quit, then swap the bundle and relaunch.
+  // Designed so that a crash/kill at any point leaves a working app behind:
+  //   1. Abort if the app is still alive after the timeout (never delete a
+  //      bundle that is currently mapped/running).
+  //   2. Stage the new bundle next to the target first (the slow cross-device
+  //      copy), then swap via same-directory renames, which are atomic.
+  //   3. Keep the old bundle as a .bak until the swap succeeds; restore it on
+  //      failure.
   const script = `#!/bin/bash
 set -e
 APP_PID="$1"
@@ -156,24 +163,51 @@ ZIP="$2"
 DEST="$3"
 
 # Wait (up to ~30s) for the running app to exit so we can replace it.
+ALIVE=1
 for i in $(seq 1 60); do
-  if ! kill -0 "$APP_PID" 2>/dev/null; then break; fi
+  if ! kill -0 "$APP_PID" 2>/dev/null; then ALIVE=0; break; fi
   sleep 0.5
 done
 
-TMP="$(mktemp -d)"
-/usr/bin/unzip -qo "$ZIP" -d "$TMP"
-NEW_APP="$(/usr/bin/find "$TMP" -maxdepth 1 -name '*.app' | head -1)"
-
-if [ -n "$NEW_APP" ]; then
-  /bin/rm -rf "$DEST"
-  /bin/mv "$NEW_APP" "$DEST"
-  # Strip quarantine so Gatekeeper doesn't block the relaunch.
-  /usr/bin/xattr -dr com.apple.quarantine "$DEST" 2>/dev/null || true
-  /usr/bin/open "$DEST"
+# Still running after the timeout — abort rather than delete a mapped bundle.
+if [ "$ALIVE" -ne 0 ]; then
+  exit 1
 fi
 
-/bin/rm -rf "$TMP"
+TMP="$(mktemp -d)"
+trap '/bin/rm -rf "$TMP"' EXIT
+/usr/bin/unzip -qo "$ZIP" -d "$TMP"
+
+NEW_APP="$(/usr/bin/find "$TMP" -maxdepth 1 -name '*.app' | head -1)"
+if [ -z "$NEW_APP" ]; then
+  exit 1
+fi
+
+# Strip quarantine on the staged copy so Gatekeeper doesn't block the relaunch.
+/usr/bin/xattr -dr com.apple.quarantine "$NEW_APP" 2>/dev/null || true
+
+# Stage on the destination filesystem so the final swap is atomic renames.
+STAGE="\${DEST}.new"
+BAK="\${DEST}.bak"
+/bin/rm -rf "$STAGE" "$BAK"
+/bin/mv "$NEW_APP" "$STAGE"
+
+if [ -d "$DEST" ]; then
+  /bin/mv "$DEST" "$BAK"
+fi
+
+if /bin/mv "$STAGE" "$DEST"; then
+  /bin/rm -rf "$BAK"
+else
+  # Swap failed — restore the previous bundle so the user is never left without one.
+  /bin/rm -rf "$DEST"
+  if [ -d "$BAK" ]; then
+    /bin/mv "$BAK" "$DEST"
+  fi
+  exit 1
+fi
+
+/usr/bin/open "$DEST"
 `;
 
   try {
