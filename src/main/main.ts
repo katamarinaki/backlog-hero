@@ -1,8 +1,9 @@
 import * as path from 'path';
+import * as fs from 'fs/promises';
 
-import { app, BrowserWindow, ipcMain, net } from 'electron';
 import Store from 'electron-store';
 import { autoUpdater } from 'electron-updater';
+import { app, BrowserWindow, dialog, ipcMain, net } from 'electron';
 
 interface GameRating {
   positive: number;
@@ -17,14 +18,32 @@ interface GameCompletion {
   completedDate?: string; // ISO date string, optional
 }
 
+type GameStatusType = 'completed' | 'in_progress' | 'dropped' | 'backlog';
+
+interface GameStatus {
+  status?: GameStatusType;
+  statusDate?: string;
+  completedDate?: string;
+  isEndless?: boolean;
+}
+
+type StatusFilter =
+  | 'all'
+  | 'completed'
+  | 'in_progress'
+  | 'dropped'
+  | 'backlog'
+  | 'untracked'
+  | 'endless';
+
 interface GameAchievements {
   achieved: number;
   total: number;
 }
 
 interface FilterPreferences {
-  completionFilter: 'all' | 'completed' | 'not_completed';
-  sortBy: 'playtime' | 'name' | 'rating' | 'last_played';
+  statusFilter: StatusFilter;
+  sortBy: 'playtime' | 'name' | 'rating' | 'last_played' | 'status_date';
   sortAsc: boolean;
 }
 
@@ -35,6 +54,7 @@ interface StoreSchema {
   ratings: Record<number, GameRating>;
   notes: Record<number, string>;
   completions: Record<number, GameCompletion>;
+  statuses: Record<number, GameStatus>;
   achievements: Record<number, GameAchievements>;
   filterPreferences: FilterPreferences;
 }
@@ -49,22 +69,54 @@ interface SteamGame {
   rtime_last_played?: number;
 }
 
-const store = new Store<StoreSchema>({
-  defaults: {
-    apiKey: '',
-    steamId: '',
-    games: [],
-    ratings: {},
-    notes: {},
-    completions: {},
-    achievements: {},
-    filterPreferences: {
-      completionFilter: 'all',
-      sortBy: 'playtime',
-      sortAsc: false,
-    },
+const defaultStoreData: StoreSchema = {
+  apiKey: '',
+  steamId: '',
+  games: [],
+  ratings: {},
+  notes: {},
+  completions: {},
+  statuses: {},
+  achievements: {},
+  filterPreferences: {
+    statusFilter: 'all',
+    sortBy: 'playtime',
+    sortAsc: false,
   },
+};
+
+const store = new Store<StoreSchema>({
+  defaults: defaultStoreData,
 });
+
+// Migrate old completions to new statuses format
+function migrateCompletionsToStatuses() {
+  const statuses = store.get('statuses') || {};
+  const completions = store.get('completions') || {};
+
+  // Only migrate if statuses is empty but completions has data
+  if (Object.keys(statuses).length === 0 && Object.keys(completions).length > 0) {
+    const migratedStatuses: Record<number, GameStatus> = {};
+
+    for (const [appidStr, completion] of Object.entries(completions)) {
+      if (completion.completed) {
+        const appid = parseInt(appidStr, 10);
+        migratedStatuses[appid] = {
+          status: 'completed',
+          statusDate: completion.completedDate || new Date().toISOString(),
+          completedDate: completion.completedDate,
+        };
+      }
+    }
+
+    if (Object.keys(migratedStatuses).length > 0) {
+      store.set('statuses', migratedStatuses);
+    }
+  }
+}
+
+// Run migration
+migrateCompletionsToStatuses();
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -258,9 +310,11 @@ async function fetchGameRating(appid: number): Promise<GameRating | null> {
 }
 
 // IPC Handler for fetching ratings (batch)
-ipcMain.handle('fetch-ratings', async (_, appids: number[]) => {
+ipcMain.handle('fetch-ratings', async (event, appids: number[]) => {
   const cachedRatings = store.get('ratings') || {};
   const newRatings: Record<number, GameRating> = { ...cachedRatings };
+  const totalToFetch = appids.filter((id) => !cachedRatings[id]).length;
+  let fetched = 0;
 
   // Fetch ratings in batches to avoid overwhelming the API
   const batchSize = 5;
@@ -269,6 +323,8 @@ ipcMain.handle('fetch-ratings', async (_, appids: number[]) => {
     const promises = batch.map(async (appid) => {
       if (!cachedRatings[appid]) {
         const rating = await fetchGameRating(appid);
+        fetched++;
+        event.sender.send('fetch-ratings-progress', { fetched, total: totalToFetch });
         if (rating) {
           newRatings[appid] = rating;
         }
@@ -321,6 +377,25 @@ ipcMain.handle(
   },
 );
 
+// IPC Handlers for game statuses
+ipcMain.handle('get-statuses', () => {
+  return store.get('statuses') || {};
+});
+
+ipcMain.handle(
+  'save-status',
+  (_, { appid, status }: { appid: number; status: GameStatus | null }) => {
+    const statuses = store.get('statuses') || {};
+    if (status === null) {
+      delete statuses[appid];
+    } else {
+      statuses[appid] = status;
+    }
+    store.set('statuses', statuses);
+    return true;
+  },
+);
+
 // Fetch achievements for a single game
 async function fetchGameAchievements(
   appid: number,
@@ -366,7 +441,7 @@ async function fetchGameAchievements(
 }
 
 // IPC Handler for fetching achievements (batch)
-ipcMain.handle('fetch-achievements', async (_, appids: number[]) => {
+ipcMain.handle('fetch-achievements', async (event, appids: number[]) => {
   const apiKey = store.get('apiKey');
   const steamId = store.get('steamId');
 
@@ -376,6 +451,8 @@ ipcMain.handle('fetch-achievements', async (_, appids: number[]) => {
 
   const cachedAchievements = store.get('achievements') || {};
   const newAchievements: Record<number, GameAchievements> = { ...cachedAchievements };
+  const totalToFetch = appids.filter((id) => !cachedAchievements[id]).length;
+  let fetched = 0;
 
   // Fetch achievements in batches
   const batchSize = 5;
@@ -384,6 +461,8 @@ ipcMain.handle('fetch-achievements', async (_, appids: number[]) => {
     const promises = batch.map(async (appid) => {
       if (!cachedAchievements[appid]) {
         const achievements = await fetchGameAchievements(appid, apiKey, steamId);
+        fetched++;
+        event.sender.send('fetch-achievements-progress', { fetched, total: totalToFetch });
         if (achievements) {
           newAchievements[appid] = achievements;
         }
@@ -411,5 +490,110 @@ ipcMain.handle('get-filter-preferences', () => {
 
 ipcMain.handle('save-filter-preferences', (_, preferences: FilterPreferences) => {
   store.set('filterPreferences', preferences);
+  return true;
+});
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function sanitizeFilterPreferences(value: unknown): FilterPreferences | null {
+  if (!isObject(value)) return null;
+  const statusFilter = value.statusFilter;
+  const sortBy = value.sortBy;
+  const sortAsc = value.sortAsc;
+
+  const statusFilterValues = [
+    'all',
+    'completed',
+    'in_progress',
+    'dropped',
+    'backlog',
+    'untracked',
+    'endless',
+  ] as const;
+  const sortByValues = ['playtime', 'name', 'rating', 'last_played', 'status_date'] as const;
+
+  if (
+    !statusFilterValues.includes(statusFilter as FilterPreferences['statusFilter']) ||
+    !sortByValues.includes(sortBy as FilterPreferences['sortBy']) ||
+    typeof sortAsc !== 'boolean'
+  ) {
+    return null;
+  }
+
+  return {
+    statusFilter: statusFilter as FilterPreferences['statusFilter'],
+    sortBy: sortBy as FilterPreferences['sortBy'],
+    sortAsc,
+  };
+}
+
+function getBackupData(): StoreSchema {
+  return {
+    apiKey: store.get('apiKey'),
+    steamId: store.get('steamId'),
+    games: store.get('games'),
+    ratings: store.get('ratings'),
+    notes: store.get('notes'),
+    completions: store.get('completions'),
+    statuses: store.get('statuses'),
+    achievements: store.get('achievements'),
+    filterPreferences: store.get('filterPreferences'),
+  };
+}
+
+ipcMain.handle('export-data', async () => {
+  const { canceled, filePath } = await dialog.showSaveDialog({
+    title: 'Export Backlog Hero Data',
+    defaultPath: path.join(app.getPath('documents'), 'backlog-hero-backup.json'),
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+  });
+
+  if (canceled || !filePath) {
+    return false;
+  }
+
+  const data = getBackupData();
+  await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
+  return true;
+});
+
+ipcMain.handle('import-data', async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog({
+    title: 'Import Backlog Hero Data',
+    properties: ['openFile'],
+    filters: [{ name: 'JSON', extensions: ['json'] }],
+  });
+
+  if (canceled || filePaths.length === 0) {
+    return false;
+  }
+
+  const raw = await fs.readFile(filePaths[0], 'utf8');
+  const parsed: unknown = JSON.parse(raw);
+
+  if (!isObject(parsed)) {
+    throw new Error('Invalid backup file.');
+  }
+
+  const backup = parsed as Partial<StoreSchema>;
+  const filterPreferences =
+    sanitizeFilterPreferences(backup.filterPreferences) ?? defaultStoreData.filterPreferences;
+
+  store.set({
+    apiKey: typeof backup.apiKey === 'string' ? backup.apiKey : defaultStoreData.apiKey,
+    steamId: typeof backup.steamId === 'string' ? backup.steamId : defaultStoreData.steamId,
+    games: Array.isArray(backup.games) ? backup.games : defaultStoreData.games,
+    ratings: isObject(backup.ratings) ? backup.ratings : defaultStoreData.ratings,
+    notes: isObject(backup.notes) ? backup.notes : defaultStoreData.notes,
+    completions: isObject(backup.completions) ? backup.completions : defaultStoreData.completions,
+    statuses: isObject(backup.statuses) ? backup.statuses : defaultStoreData.statuses,
+    achievements: isObject(backup.achievements)
+      ? backup.achievements
+      : defaultStoreData.achievements,
+    filterPreferences,
+  });
+
   return true;
 });

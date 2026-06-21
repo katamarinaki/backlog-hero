@@ -27,8 +27,16 @@ module.exports = {
     react: {
       version: 'detect',
     },
+    'import/resolver': {
+      typescript: {
+        project: ['tsconfig.json', 'tsconfig.main.json'],
+        alwaysTryTypes: true,
+      },
+    },
   },
   rules: {
+    'import/default': 'off',
+    'import/no-named-as-default-member': 'off',
     'react/react-in-jsx-scope': 'off',
     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     'import/order': [

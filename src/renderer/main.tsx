@@ -1,16 +1,29 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
 import { HashRouter, Routes, Route } from 'react-router-dom';
 
-import App from './App';
-import './styles/index.css';
+import { Header } from 'components/header';
+import { GameProvider } from 'context/game-context';
+import { HomePage } from 'pages/home-page';
+import { SettingsPage } from 'pages/settings-page';
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
+import styles from './main.module.css';
+import './styles.global.css';
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
     <HashRouter>
-      <Routes>
-        <Route path="/*" element={<App />} />
-      </Routes>
+      <GameProvider>
+        <div className={styles.app}>
+          <Header />
+          <main className={styles.mainContent}>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+            </Routes>
+          </main>
+        </div>
+      </GameProvider>
     </HashRouter>
-  </React.StrictMode>,
+  </StrictMode>,
 );

@@ -27,18 +27,43 @@ export interface GameCompletion {
   completedDate?: string; // ISO date string
 }
 
+export type GameStatusType = 'completed' | 'in_progress' | 'dropped' | 'backlog';
+
+export interface GameStatus {
+  status?: GameStatusType; // Optional - endless games may have no status
+  statusDate?: string; // When status was last changed
+  completedDate?: string; // Specific to 'completed' status
+  isEndless?: boolean; // Games without campaigns that can't be completed
+}
+
+export type StatusFilter =
+  | 'all'
+  | 'completed'
+  | 'in_progress'
+  | 'dropped'
+  | 'backlog'
+  | 'untracked'
+  | 'endless';
+
 export interface GameAchievements {
   achieved: number;
   total: number;
 }
 
 export interface FilterPreferences {
-  completionFilter: 'all' | 'completed' | 'not_completed';
-  sortBy: 'playtime' | 'name' | 'rating' | 'last_played';
+  statusFilter: StatusFilter;
+  sortBy: 'playtime' | 'name' | 'rating' | 'last_played' | 'status_date';
   sortAsc: boolean;
 }
 
+export interface FetchProgress {
+  fetched: number;
+  total: number;
+}
+
 export interface ElectronAPI {
+  onRatingsProgress: (callback: (progress: FetchProgress) => void) => () => void;
+  onAchievementsProgress: (callback: (progress: FetchProgress) => void) => () => void;
   getSettings: () => Promise<Settings>;
   saveSettings: (settings: Settings) => Promise<boolean>;
   fetchGames: () => Promise<SteamGame[]>;
@@ -49,10 +74,14 @@ export interface ElectronAPI {
   saveNote: (appid: number, note: string) => Promise<boolean>;
   getCompletions: () => Promise<Record<number, GameCompletion>>;
   saveCompletion: (appid: number, completion: GameCompletion | null) => Promise<boolean>;
+  getStatuses: () => Promise<Record<number, GameStatus>>;
+  saveStatus: (appid: number, status: GameStatus | null) => Promise<boolean>;
   getAchievements: () => Promise<Record<number, GameAchievements>>;
   fetchAchievements: (appids: number[]) => Promise<Record<number, GameAchievements>>;
   getFilterPreferences: () => Promise<FilterPreferences>;
   saveFilterPreferences: (preferences: FilterPreferences) => Promise<boolean>;
+  exportData: () => Promise<boolean>;
+  importData: () => Promise<boolean>;
 }
 
 declare global {

@@ -3,3 +3,4 @@ dist/
 release/
 out/
 coverage/
+package-lock.json

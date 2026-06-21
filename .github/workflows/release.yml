@@ -2,8 +2,9 @@ name: Build and Draft Release
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -15,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
+        os: [macos-latest, windows-latest, ubuntu-latest]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,6 +40,7 @@ jobs:
           path: |
             release/**/*.dmg
             release/**/*Setup*.exe
+            release/**/*.AppImage
             release/**/*.blockmap
             release/**/latest*.yml
             release/**/app-update.yml
@@ -80,13 +82,15 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           body: |
             Install
-            - Windows: download and run the `Backlog Hero Setup <version>.exe` installer.
-            - macOS: download and open the `Backlog Hero-<version>-arm64.dmg` file.
+            - Windows: download and run the `Backlog Hero Setup.exe` installer.
+            - macOS: download and open the `Backlog Hero.dmg` file.
+            - Linux: download the `Backlog Hero.AppImage`, make it executable (`chmod +x`), and run it.
 
             Notes
             - Auto-update files (`latest*.yml`, `app-update.yml`, `*.blockmap`) are for the app and can be ignored.
           artifacts: |
             release-artifacts/**/*.dmg
+            release-artifacts/**/*.AppImage
             release-artifacts/**/*.blockmap
             release-artifacts/**/latest*.yml
             release-artifacts/**/app-update.yml

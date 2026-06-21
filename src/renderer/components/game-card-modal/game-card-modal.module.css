@@ -1,0 +1,371 @@
+.modalBackdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 2rem;
+}
+
+.modalContent {
+  background-color: var(--bg-secondary);
+  border-radius: 12px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.modalClose {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.modalClose:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.modalHeaderImage {
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  border-radius: 12px 12px 0 0;
+}
+
+.modalHeaderImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.modalBody {
+  padding: 1.5rem;
+}
+
+.modalTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 1.25rem;
+  color: var(--text-primary);
+}
+
+/* Status Section */
+.statusSection {
+  background-color: var(--bg-card);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.sectionLabel {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--text-primary);
+}
+
+.statusPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.statusPill {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.statusPill:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.statusPillActive.statusCompleted {
+  background-color: var(--status-completed);
+  border-color: var(--status-completed);
+  color: white;
+}
+
+.statusPillActive.statusInProgress {
+  background-color: var(--status-in-progress);
+  border-color: var(--status-in-progress);
+  color: var(--bg-primary);
+}
+
+.statusPillActive.statusDropped {
+  background-color: var(--status-dropped);
+  border-color: var(--status-dropped);
+  color: white;
+}
+
+.statusPillActive.statusBacklog {
+  background-color: var(--status-backlog);
+  border-color: var(--status-backlog);
+  color: var(--bg-primary);
+}
+
+.statusPillActive.statusNone {
+  background-color: var(--bg-primary);
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.statusPillDisabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.statusPillDisabled:hover {
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+
+/* Endless Toggle */
+.endlessToggle {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.endlessCheckbox {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+
+.endlessCheckbox input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--status-endless);
+}
+
+.checkboxLabel {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.endlessCheckbox:hover .checkboxLabel {
+  color: var(--text-primary);
+}
+
+/* Completion Date */
+.completionDate {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.completionDate label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.completionDate input[type='date'] {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.completionDate input[type='date']:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Modal Stats */
+.modalStats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.statItem {
+  background-color: var(--bg-card);
+  padding: 0.875rem;
+  border-radius: 8px;
+}
+
+.statLabel {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+}
+
+.statValue {
+  display: block;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.achievementPercent {
+  color: var(--text-secondary);
+}
+
+/* Modal Rating */
+.modalRating {
+  background-color: var(--bg-card);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  border-left: 3px solid;
+}
+
+.ratingHeader {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.ratingDetails {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+}
+
+.ratingSeparator {
+  margin: 0 0.5rem;
+}
+
+.ratingBar {
+  height: 6px;
+  background-color: var(--bg-primary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.ratingBarPositive {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* Modal Notes */
+.modalNotes {
+  margin-bottom: 1.5rem;
+}
+
+.modalNotes label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.modalNotes textarea {
+  width: 100%;
+  padding: 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 100px;
+  margin-bottom: 0.75rem;
+}
+
+.modalNotes textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.modalNotes textarea::placeholder {
+  color: var(--text-secondary);
+}
+
+/* Modal Actions */
+.modalActions {
+  display: flex;
+  gap: 1rem;
+}
+
+/* Buttons */
+.btnPrimary {
+  background-color: var(--accent);
+  color: var(--bg-primary);
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+}
+
+.btnPrimary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btnSecondary {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s;
+  text-decoration: none;
+  text-align: center;
+}
+
+.btnSecondary:hover:not(:disabled) {
+  background-color: var(--bg-card);
+  border-color: var(--accent);
+}
+
+.btnSecondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
