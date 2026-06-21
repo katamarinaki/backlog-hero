@@ -6,8 +6,13 @@ import {
   getLogDate,
   buildLibraryCapsuleUrl,
   STORE_ASSET_BASE,
+  getSuggestedSessionMinutes,
 } from './logUtils';
-import type { GameStatus, SteamGame } from './types';
+import type { GameSession, GameStatus, SteamGame } from './types';
+
+function session(partial: Partial<GameSession> & { minutes: number; date: string }): GameSession {
+  return { id: 'x', appid: 1, ...partial };
+}
 
 function game(partial: Partial<SteamGame> & { appid: number }): SteamGame {
   return {
@@ -71,6 +76,29 @@ describe('buildLibraryCapsuleUrl', () => {
   it('returns null when either field is missing', () => {
     expect(buildLibraryCapsuleUrl(undefined, 'x.jpg')).toBeNull();
     expect(buildLibraryCapsuleUrl('steam/apps/1/${FILENAME}', undefined)).toBeNull();
+  });
+});
+
+describe('getSuggestedSessionMinutes', () => {
+  const now = new Date('2024-06-20T12:00:00Z').getTime();
+
+  it('subtracts recently-logged sessions from the 2-week playtime', () => {
+    const sessions = [
+      session({ minutes: 90, date: '2024-06-19' }),
+      session({ minutes: 30, date: '2024-06-15' }),
+    ];
+    expect(getSuggestedSessionMinutes(300, sessions, now)).toBe(180);
+  });
+
+  it('ignores sessions older than two weeks', () => {
+    const sessions = [session({ minutes: 120, date: '2024-05-01' })];
+    expect(getSuggestedSessionMinutes(300, sessions, now)).toBe(300);
+  });
+
+  it('never goes negative and handles missing playtime', () => {
+    const sessions = [session({ minutes: 500, date: '2024-06-19' })];
+    expect(getSuggestedSessionMinutes(300, sessions, now)).toBe(0);
+    expect(getSuggestedSessionMinutes(0, [], now)).toBe(0);
   });
 });
 

@@ -5,6 +5,7 @@ import type {
   GameAchievements,
   GameCompletion,
   GameRating,
+  GameSession,
   GameStatus,
   SteamGame,
 } from '../shared/types';
@@ -22,6 +23,7 @@ export interface StoreSchema {
   achievements: Record<number, GameAchievements>;
   achievementTimestamps: Record<number, number>;
   coverUrls: Record<number, string>;
+  sessions: Record<number, GameSession[]>;
   filterPreferences: FilterPreferences;
   useBetaUpdates: boolean;
   lastFetchTimestamp: number;
@@ -40,6 +42,7 @@ export const STORE_DEFAULTS: StoreSchema = {
   achievements: {},
   achievementTimestamps: {},
   coverUrls: {},
+  sessions: {},
   filterPreferences: {
     statusFilter: 'all',
     sortBy: 'playtime',

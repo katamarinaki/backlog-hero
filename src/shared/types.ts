@@ -49,6 +49,18 @@ export interface GameAchievements {
   total: number;
 }
 
+export interface GameSession {
+  id: string;
+  appid: number;
+  /** ISO date the session took place (yyyy-mm-dd). */
+  date: string;
+  /** Session length in minutes. */
+  minutes: number;
+  /** Optional 0-100 rating for this specific session. */
+  rating?: number;
+  notes?: string;
+}
+
 export interface FilterPreferences {
   statusFilter: StatusFilter;
   sortBy: 'playtime' | 'name' | 'rating' | 'last_played' | 'status_date';

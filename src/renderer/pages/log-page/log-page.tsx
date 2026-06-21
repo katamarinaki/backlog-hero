@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import { GameCardModal } from 'components/game-card-modal';
+import { LogModal } from 'components/log-modal';
 import { useGameContext } from 'context/game-context';
 
 import { getRecentActivity } from '../../../shared/logUtils';
@@ -83,7 +83,7 @@ export const LogPage = () => {
         )}
       </section>
 
-      {selectedGame && <GameCardModal game={selectedGame} onClose={() => setSelectedGame(null)} />}
+      {selectedGame && <LogModal game={selectedGame} onClose={() => setSelectedGame(null)} />}
     </div>
   );
 };

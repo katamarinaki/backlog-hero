@@ -1,4 +1,36 @@
-import type { GameStatus, SteamGame } from './types';
+import type { GameSession, GameStatus, SteamGame } from './types';
+
+const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
+
+/** Sessions whose date falls within the last `windowMs` milliseconds. */
+export function getSessionsWithin(
+  sessions: GameSession[],
+  windowMs: number,
+  now?: number,
+): GameSession[] {
+  const cutoff = (now ?? Date.now()) - windowMs;
+  return sessions.filter((s) => {
+    const t = new Date(s.date).getTime();
+    return !Number.isNaN(t) && t >= cutoff;
+  });
+}
+
+/**
+ * Default length (minutes) to suggest for a new session: Steam's last-2-weeks
+ * playtime minus what the user has already logged in that same window. Never
+ * negative.
+ */
+export function getSuggestedSessionMinutes(
+  playtime2weeks: number,
+  sessions: GameSession[],
+  now?: number,
+): number {
+  const loggedRecently = getSessionsWithin(sessions, TWO_WEEKS_MS, now).reduce(
+    (sum, s) => sum + (s.minutes || 0),
+    0,
+  );
+  return Math.max(0, (playtime2weeks ?? 0) - loggedRecently);
+}
 
 /** Base host for Steam's hashed store item assets (library capsules, headers). */
 export const STORE_ASSET_BASE = 'https://shared.akamai.steamstatic.com/store_item_assets/';

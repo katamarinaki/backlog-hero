@@ -50,6 +50,15 @@ export interface GameAchievements {
   total: number;
 }
 
+export interface GameSession {
+  id: string;
+  appid: number;
+  date: string;
+  minutes: number;
+  rating?: number;
+  notes?: string;
+}
+
 export interface FilterPreferences {
   statusFilter: StatusFilter;
   sortBy: 'playtime' | 'name' | 'rating' | 'last_played' | 'status_date';
@@ -81,6 +90,9 @@ export interface ElectronAPI {
   saveCompletion: (appid: number, completion: GameCompletion | null) => Promise<boolean>;
   getStatuses: () => Promise<Record<number, GameStatus>>;
   saveStatus: (appid: number, status: GameStatus | null) => Promise<boolean>;
+  getSessions: () => Promise<Record<number, GameSession[]>>;
+  saveSession: (appid: number, session: GameSession) => Promise<GameSession[]>;
+  deleteSession: (appid: number, id: string) => Promise<GameSession[]>;
   getAchievements: () => Promise<Record<number, GameAchievements>>;
   fetchAchievements: (appids: number[]) => Promise<Record<number, GameAchievements>>;
   fetchAchievement: (appid: number) => Promise<GameAchievements | null>;

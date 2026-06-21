@@ -8,6 +8,7 @@ import type {
   GameAchievements,
   GameCompletion,
   GameRating,
+  GameSession,
   GameStatus,
 } from '../shared/types';
 
@@ -324,6 +325,39 @@ ipcMain.handle(
   },
 );
 
+// --- IPC: Sessions (gaming-session log) ---
+
+ipcMain.handle('get-sessions', () => store.get('sessions') || {});
+
+ipcMain.handle('save-session', (_, { appid, session }: { appid: number; session: GameSession }) => {
+  if (typeof appid !== 'number' || !session || typeof session.id !== 'string') {
+    throw new Error('Invalid session payload');
+  }
+  const sessions = store.get('sessions') || {};
+  const list = sessions[appid] ? [...sessions[appid]] : [];
+  const existingIndex = list.findIndex((s) => s.id === session.id);
+  if (existingIndex >= 0) {
+    list[existingIndex] = session;
+  } else {
+    list.push(session);
+  }
+  sessions[appid] = list;
+  store.set('sessions', sessions);
+  return list;
+});
+
+ipcMain.handle('delete-session', (_, { appid, id }: { appid: number; id: string }) => {
+  const sessions = store.get('sessions') || {};
+  const list = (sessions[appid] || []).filter((s) => s.id !== id);
+  if (list.length > 0) {
+    sessions[appid] = list;
+  } else {
+    delete sessions[appid];
+  }
+  store.set('sessions', sessions);
+  return list;
+});
+
 // --- IPC: Achievements ---
 
 ipcMain.handle('fetch-achievements', async (event, appids: number[]) => {
@@ -447,6 +481,7 @@ function getBackupData(): StoreSchema {
     achievements: store.get('achievements'),
     achievementTimestamps: store.get('achievementTimestamps'),
     coverUrls: store.get('coverUrls'),
+    sessions: store.get('sessions'),
     filterPreferences: store.get('filterPreferences'),
     useBetaUpdates: store.get('useBetaUpdates', false),
     lastFetchTimestamp: store.get('lastFetchTimestamp', 0),
