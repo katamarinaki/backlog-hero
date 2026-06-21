@@ -620,6 +620,9 @@ ipcMain.handle('save-beta-updates', (_, useBeta: boolean) => {
         repo: 'backlog-hero',
       });
     }
+    autoUpdater.checkForUpdatesAndNotify().catch((error) => {
+      console.error('Auto update check failed:', error);
+    });
   }
 
   return true;
