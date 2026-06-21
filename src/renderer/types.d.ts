@@ -82,6 +82,8 @@ export interface ElectronAPI {
   saveFilterPreferences: (preferences: FilterPreferences) => Promise<boolean>;
   exportData: () => Promise<boolean>;
   importData: () => Promise<boolean>;
+  getBetaUpdates: () => Promise<boolean>;
+  saveBetaUpdates: (useBeta: boolean) => Promise<boolean>;
 }
 
 declare global {

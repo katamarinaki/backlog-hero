@@ -12,6 +12,7 @@ export const SettingsPage = () => {
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(false);
+  const [betaUpdates, setBetaUpdates] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -22,6 +23,8 @@ export const SettingsPage = () => {
       const settings = await window.electronAPI.getSettings();
       setApiKey(settings.apiKey || '');
       setSteamId(settings.steamId || '');
+      const beta = await window.electronAPI.getBetaUpdates();
+      setBetaUpdates(beta);
     } catch (error) {
       console.error('Failed to load settings:', error);
     }
@@ -211,6 +214,26 @@ export const SettingsPage = () => {
             {dataLoading ? 'Working...' : 'Import Data'}
           </button>
         </div>
+      </div>
+
+      <div className={styles.settingsSection}>
+        <h2>Updates</h2>
+        <p className={styles.settingsDescription}>
+          Beta builds are created from every push to the develop branch. Enable to receive the
+          latest changes before they are released.
+        </p>
+        <label className={styles.checkboxLabel}>
+          <input
+            type="checkbox"
+            checked={betaUpdates}
+            onChange={async (e) => {
+              const value = e.target.checked;
+              setBetaUpdates(value);
+              await window.electronAPI.saveBetaUpdates(value);
+            }}
+          />
+          Use beta updates
+        </label>
       </div>
     </div>
   );
