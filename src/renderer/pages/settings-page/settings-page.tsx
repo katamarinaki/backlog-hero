@@ -1,17 +1,24 @@
 import { useState, useEffect } from 'react';
 
 import { useGameContext } from 'context/game-context';
+import type { FetchProgress } from 'types';
 
 import styles from './settings-page.module.css';
 
 export const SettingsPage = () => {
-  const { games, refreshLibrary, fetchRatings, fetchAchievements, syncLoading } = useGameContext();
+  const { games, saveSettings, refreshLibrary, fetchRatings, fetchAchievements, syncLoading } =
+    useGameContext();
 
   const [apiKey, setApiKey] = useState('');
   const [steamId, setSteamId] = useState('');
-  const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [status, setStatus] = useState<{
+    section: 'credentials' | 'sync' | 'data';
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(false);
+  const [progress, setProgress] = useState<FetchProgress | null>(null);
   const [betaUpdates, setBetaUpdates] = useState(false);
   const [appVersion, setAppVersion] = useState('');
   const [updateStatus, setUpdateStatus] = useState<{
@@ -24,8 +31,14 @@ export const SettingsPage = () => {
   useEffect(() => {
     loadSettings();
     window.desktopAPI.getAppVersion().then(setAppVersion).catch(console.error);
-    const unsubscribe = window.desktopAPI.onUpdaterStatus(setUpdateStatus);
-    return unsubscribe;
+    const stopUpdater = window.desktopAPI.onUpdaterStatus(setUpdateStatus);
+    const stopRatings = window.desktopAPI.onRatingsProgress(setProgress);
+    const stopAchievements = window.desktopAPI.onAchievementsProgress(setProgress);
+    return () => {
+      stopUpdater();
+      stopRatings();
+      stopAchievements();
+    };
   }, []);
 
   const loadSettings = async () => {
@@ -43,43 +56,69 @@ export const SettingsPage = () => {
   const handleRefreshLibrary = async () => {
     setStatus(null);
     try {
-      await refreshLibrary();
-      setStatus({ type: 'success', message: `Library refreshed! ${games.length} games loaded.` });
+      const count = await refreshLibrary();
+      setStatus({
+        section: 'sync',
+        type: 'success',
+        message: `Library refreshed! ${count} games loaded.`,
+      });
     } catch {
-      setStatus({ type: 'error', message: 'Failed to refresh library.' });
+      setStatus({
+        section: 'sync',
+        type: 'error',
+        message: 'Failed to refresh library. Check your API key and internet connection.',
+      });
     }
   };
 
   const handleFetchRatings = async () => {
     setStatus(null);
+    setProgress(null);
     try {
       await fetchRatings();
-      setStatus({ type: 'success', message: 'Ratings fetched successfully!' });
+      setStatus({ section: 'sync', type: 'success', message: 'Ratings fetched successfully!' });
     } catch {
-      setStatus({ type: 'error', message: 'Failed to fetch ratings.' });
+      setStatus({ section: 'sync', type: 'error', message: 'Failed to fetch ratings.' });
     }
   };
 
   const handleFetchAchievements = async () => {
     setStatus(null);
+    setProgress(null);
     try {
       await fetchAchievements();
-      setStatus({ type: 'success', message: 'Achievements fetched successfully!' });
+      setStatus({
+        section: 'sync',
+        type: 'success',
+        message: 'Achievements fetched successfully!',
+      });
     } catch {
-      setStatus({ type: 'error', message: 'Failed to fetch achievements.' });
+      setStatus({ section: 'sync', type: 'error', message: 'Failed to fetch achievements.' });
     }
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!/^\d{17}$/.test(steamId.trim())) {
+      setStatus({
+        section: 'credentials',
+        type: 'error',
+        message: 'Steam ID must be the 17-digit SteamID64.',
+      });
+      return;
+    }
     setLoading(true);
     setStatus(null);
 
     try {
-      await window.desktopAPI.saveSettings({ apiKey, steamId });
-      setStatus({ type: 'success', message: 'Settings saved successfully!' });
+      await saveSettings({ apiKey, steamId });
+      setStatus({
+        section: 'credentials',
+        type: 'success',
+        message: 'Settings saved successfully!',
+      });
     } catch {
-      setStatus({ type: 'error', message: 'Failed to save settings' });
+      setStatus({ section: 'credentials', type: 'error', message: 'Failed to save settings' });
     } finally {
       setLoading(false);
     }
@@ -92,11 +131,11 @@ export const SettingsPage = () => {
     try {
       const exported = await window.desktopAPI.exportData();
       if (exported) {
-        setStatus({ type: 'success', message: 'Data exported successfully.' });
+        setStatus({ section: 'data', type: 'success', message: 'Data exported successfully.' });
       }
     } catch (error) {
       console.error('Failed to export data:', error);
-      setStatus({ type: 'error', message: 'Failed to export data.' });
+      setStatus({ section: 'data', type: 'error', message: 'Failed to export data.' });
     } finally {
       setDataLoading(false);
     }
@@ -110,6 +149,7 @@ export const SettingsPage = () => {
       const imported = await window.desktopAPI.importData();
       if (imported) {
         setStatus({
+          section: 'data',
           type: 'success',
           message: 'Data imported. Refreshing the app...',
         });
@@ -117,11 +157,20 @@ export const SettingsPage = () => {
       }
     } catch (error) {
       console.error('Failed to import data:', error);
-      setStatus({ type: 'error', message: 'Failed to import data.' });
+      setStatus({ section: 'data', type: 'error', message: 'Failed to import data.' });
     } finally {
       setDataLoading(false);
     }
   };
+
+  const renderStatus = (section: 'credentials' | 'sync' | 'data') =>
+    status?.section === section && (
+      <div
+        className={`${styles.statusMessage} ${status.type === 'success' ? styles.success : styles.error}`}
+      >
+        {status.message}
+      </div>
+    );
 
   return (
     <div className={styles.settingsPage}>
@@ -169,13 +218,7 @@ export const SettingsPage = () => {
           </small>
         </div>
 
-        {status && (
-          <div
-            className={`${styles.statusMessage} ${status.type === 'success' ? styles.success : styles.error}`}
-          >
-            {status.message}
-          </div>
-        )}
+        {renderStatus('credentials')}
 
         <button type="submit" className={styles.btnPrimary} disabled={loading}>
           {loading ? 'Saving...' : 'Save Settings'}
@@ -211,11 +254,20 @@ export const SettingsPage = () => {
             {syncLoading === 'achievements' ? 'Loading...' : 'Fetch Achievements'}
           </button>
         </div>
+        {syncLoading && syncLoading !== 'library' && progress && (
+          <p className={styles.syncProgress}>
+            {progress.fetched} / {progress.total} games checked
+          </p>
+        )}
+        {renderStatus('sync')}
       </div>
 
       <div className={styles.settingsSection}>
         <h2>Data</h2>
-        <p className={styles.settingsDescription}>Export or import all local data for this app.</p>
+        <p className={styles.settingsDescription}>
+          Export or import all local data for this app. Exports include your Steam API key, so keep
+          them private. Importing replaces all current data.
+        </p>
         <div className={styles.settingsActions}>
           <button className={styles.btnSecondary} onClick={handleExport} disabled={dataLoading}>
             {dataLoading ? 'Working...' : 'Export Data'}
@@ -224,6 +276,7 @@ export const SettingsPage = () => {
             {dataLoading ? 'Working...' : 'Import Data'}
           </button>
         </div>
+        {renderStatus('data')}
       </div>
 
       <div className={styles.settingsSection}>

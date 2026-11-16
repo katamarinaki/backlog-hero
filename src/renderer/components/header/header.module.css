@@ -1,8 +1,13 @@
 .navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: var(--nav-height);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 2rem;
+  /* Keeps the brand and links on the same edges as the 1400px page column. */
+  padding: 0 max(2rem, calc((100% - 1400px) / 2 + 2rem));
   background-color: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
 }

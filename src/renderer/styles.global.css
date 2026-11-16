@@ -20,6 +20,7 @@
   --status-dropped: #a34c4c;
   --status-backlog: #b9a074;
   --status-retired: #9b59b6;
+  --nav-height: 4.5rem;
 }
 
 body {

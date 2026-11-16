@@ -15,6 +15,7 @@ import type {
   GameRating,
   GameSession,
   GameStatus,
+  Settings,
   StatusFilter,
   SteamGame,
 } from 'types';
@@ -54,12 +55,13 @@ interface GameContextValue {
   statusCounts: Record<string, number>;
 
   // Actions
+  saveSettings: (settings: Settings) => Promise<void>;
   saveNote: (note: string) => Promise<void>;
   saveStatus: (appid: number, status: GameStatus | null) => Promise<void>;
   saveUserRating: (appid: number, rating: number) => Promise<void>;
   saveSession: (appid: number, session: GameSession) => Promise<void>;
   deleteSession: (appid: number, id: string) => Promise<void>;
-  refreshLibrary: () => Promise<void>;
+  refreshLibrary: () => Promise<number>;
   fetchRatings: () => Promise<void>;
   fetchAchievements: () => Promise<void>;
 
@@ -183,6 +185,11 @@ export const GameProvider = ({ children }: GameProviderProps) => {
     checkAndFetch();
   }, [hasSettings, games.length]);
 
+  const saveSettings = useCallback(async (settings: Settings) => {
+    await window.desktopAPI.saveSettings(settings);
+    setHasSettings(!!settings.apiKey.trim() && !!settings.steamId.trim());
+  }, []);
+
   const saveNote = useCallback(
     async (note: string) => {
       if (!selectedGame) return;
@@ -259,9 +266,10 @@ export const GameProvider = ({ children }: GameProviderProps) => {
     try {
       const fetchedGames = await window.desktopAPI.fetchGames();
       setGames(fetchedGames);
+      return fetchedGames.length;
     } catch (err) {
       console.error('Failed to refresh library:', err);
-      setError('Failed to fetch games from Steam. Check your API key and internet connection.');
+      throw err;
     } finally {
       setSyncLoading(null);
     }
@@ -276,7 +284,7 @@ export const GameProvider = ({ children }: GameProviderProps) => {
       setRatings(fetchedRatings);
     } catch (err) {
       console.error('Failed to fetch ratings:', err);
-      setError('Failed to fetch Steam ratings.');
+      throw err;
     } finally {
       setSyncLoading(null);
     }
@@ -291,7 +299,7 @@ export const GameProvider = ({ children }: GameProviderProps) => {
       setAchievements(fetchedAchievements);
     } catch (err) {
       console.error('Failed to fetch achievements:', err);
-      setError('Failed to fetch Steam achievements.');
+      throw err;
     } finally {
       setSyncLoading(null);
     }
@@ -311,6 +319,9 @@ export const GameProvider = ({ children }: GameProviderProps) => {
     // in_progress is derived: has sessions + no explicit status at all
     counts.in_progress = games.filter(
       (g) => (sessions[g.appid]?.length ?? 0) > 0 && !statuses[g.appid]?.status,
+    ).length;
+    counts.untracked = games.filter(
+      (g) => !statuses[g.appid]?.status && !sessions[g.appid]?.length,
     ).length;
     return counts;
   }, [statuses, sessions, games]);
@@ -397,6 +408,7 @@ export const GameProvider = ({ children }: GameProviderProps) => {
     setSelectedGame,
     filteredAndSortedGames,
     statusCounts,
+    saveSettings,
     saveNote,
     saveStatus,
     saveUserRating,

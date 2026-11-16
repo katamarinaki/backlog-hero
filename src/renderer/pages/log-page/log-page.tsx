@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { GameCardModal } from 'components/game-card-modal';
+import { GameThumb } from 'components/game-thumb';
 import { LogModal } from 'components/log-modal';
 import { useGameContext } from 'context/game-context';
 import type { SteamGame } from 'types';
@@ -10,7 +12,7 @@ import { formatPlaytime } from '../../../shared/gameUtils';
 
 import styles from './log-page.module.css';
 import { CoverImage } from './cover-image';
-import { getHeaderImageUrl, formatLogDate } from './utils';
+import { formatLogDate } from './utils';
 
 const PAGE_SIZE = 20;
 
@@ -24,6 +26,15 @@ const STATUS_LABELS: Record<string, string> = {
 export const LogPage = () => {
   const { games, sessions, statuses, hasSettings, selectedGame, setSelectedGame } =
     useGameContext();
+
+  const [editSessionId, setEditSessionId] = useState<string | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
+
+  const closeModal = () => {
+    setSelectedGame(null);
+    setEditSessionId(null);
+    setShowDetails(false);
+  };
 
   const recentActivity = useMemo(() => getRecentActivity(games), [games]);
 
@@ -86,7 +97,7 @@ export const LogPage = () => {
 
   if (!hasSettings) {
     return (
-      <div className={styles.logPage}>
+      <div>
         <div className={styles.emptyState}>
           <h2>Your Log</h2>
           <p>Configure your Steam API credentials to start tracking your activity.</p>
@@ -99,7 +110,7 @@ export const LogPage = () => {
   }
 
   return (
-    <div className={styles.logPage}>
+    <div>
       <div className={styles.pageHeader}>
         <h1>Your Log</h1>
       </div>
@@ -164,18 +175,12 @@ export const LogPage = () => {
                     <button
                       type="button"
                       className={styles.timelineBtn}
-                      onClick={() => setSelectedGame(game)}
+                      onClick={() => {
+                        setEditSessionId(session.id);
+                        setSelectedGame(game);
+                      }}
                     >
-                      <div className={styles.timelineThumb}>
-                        <img
-                          src={getHeaderImageUrl(game.appid)}
-                          alt={game.name}
-                          loading="lazy"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).style.visibility = 'hidden';
-                          }}
-                        />
-                      </div>
+                      <GameThumb appid={game.appid} iconHash={game.img_icon_url} />
                       <div className={styles.timelineInfo}>
                         <div className={styles.timelineTitle}>{game.name}</div>
                         <div className={styles.timelineMeta}>
@@ -209,7 +214,17 @@ export const LogPage = () => {
         )}
       </section>
 
-      {selectedGame && <LogModal game={selectedGame} onClose={() => setSelectedGame(null)} />}
+      {selectedGame &&
+        (showDetails ? (
+          <GameCardModal game={selectedGame} onClose={closeModal} />
+        ) : (
+          <LogModal
+            game={selectedGame}
+            initialSessionId={editSessionId ?? undefined}
+            onShowDetails={() => setShowDetails(true)}
+            onClose={closeModal}
+          />
+        ))}
     </div>
   );
 };

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 
 import type { SteamGame, GameStatus, GameStatusType } from 'types';
 import { useGameContext } from 'context/game-context';
+import { useModalDialog } from 'components/use-modal-dialog';
 
 import styles from './game-card-modal.module.css';
 
@@ -16,36 +17,34 @@ export const GameCardModal = ({ game, onClose }: Props) => {
     statuses,
     achievements: allAchievements,
     ratings,
+    userRatings,
     saveNote,
     saveStatus,
+    saveUserRating,
   } = useGameContext();
 
   const gameStatus = statuses[game.appid];
   const achievements = allAchievements?.[game.appid];
   const rating = ratings[game.appid];
 
-  const [note, setNote] = useState(notes[game.appid] ?? '');
+  const savedNote = notes[game.appid] ?? '';
+  const [note, setNote] = useState(savedNote);
   const [saving, setSaving] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<GameStatusType | null>(
     gameStatus?.status ?? null,
   );
   const [completedDate, setCompletedDate] = useState(gameStatus?.completedDate ?? '');
-  const [userRating, setUserRating] = useState<number | null>(null);
+  const [userRating, setUserRating] = useState<number | null>(userRatings[game.appid] ?? null);
+  const [headerFailed, setHeaderFailed] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleRatingChange = (val: number) => {
     setUserRating(val);
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      window.desktopAPI.saveUserRating(game.appid, val);
+      saveUserRating(game.appid, val);
     }, 400);
   };
-
-  useEffect(() => {
-    window.desktopAPI.getUserRatings().then((ur) => {
-      setUserRating(ur[game.appid] ?? null);
-    });
-  }, [game.appid]);
 
   useEffect(() => {
     return () => {
@@ -76,9 +75,9 @@ export const GameCardModal = ({ game, onClose }: Props) => {
           if (!cancelled && a) setLazyAchievements(a);
         }
         const rt = await window.desktopAPI.getRatingTimestamp(appid);
-        if (!cancelled) setRatingTs(rt ?? (rating ? Date.now() : null));
+        if (!cancelled) setRatingTs(rt);
         const at = await window.desktopAPI.getAchievementTimestamp(appid);
-        if (!cancelled) setAchieveTs(at ?? (achievements ? Date.now() : null));
+        if (!cancelled) setAchieveTs(at);
       } catch (err) {
         console.error('Failed to fetch game data:', err);
       }
@@ -90,19 +89,22 @@ export const GameCardModal = ({ game, onClose }: Props) => {
     };
   }, [game.appid, rating, achievements]);
 
-  const displayRating = rating || lazyRating;
+  const fetchedRating = rating || lazyRating;
+  const displayRating = fetchedRating?.total ? fetchedRating : undefined;
   const displayAchievements = achievements || lazyAchievements;
 
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
-  }, [onClose]);
+  const handleClose = async () => {
+    try {
+      if (note !== savedNote) await saveNote(note);
+    } catch (err) {
+      console.error('Failed to save note on close:', err);
+    }
+    onClose();
+  };
+  const modalRef = useModalDialog(handleClose);
 
   const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) onClose();
+    if (e.target === e.currentTarget) handleClose();
   };
 
   const handleSaveNote = async () => {
@@ -174,7 +176,7 @@ export const GameCardModal = ({ game, onClose }: Props) => {
   const getRatingColor = (score: number): string => {
     if (score >= 70) return '#66c0f4';
     if (score >= 40) return '#b9a074';
-    return '#a34c4c';
+    return '#e07a7a';
   };
 
   const getStatusPillClass = (status: GameStatusType) => {
@@ -189,23 +191,32 @@ export const GameCardModal = ({ game, onClose }: Props) => {
 
   return (
     <div className={styles.modalBackdrop} onClick={handleBackdropClick}>
-      <div className={styles.modalContent}>
-        <button className={styles.modalClose} onClick={onClose}>
-          &times;
+      <div
+        className={styles.modalContent}
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="game-modal-title"
+        tabIndex={-1}
+      >
+        <button className={styles.modalClose} onClick={handleClose} aria-label="Close">
+          ✕
         </button>
 
-        <div className={styles.modalHeaderImage}>
-          <img
-            src={getHeaderImageUrl(game.appid)}
-            alt={game.name}
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-            }}
-          />
-        </div>
+        {!headerFailed && (
+          <div className={styles.modalHeaderImage}>
+            <img
+              src={getHeaderImageUrl(game.appid)}
+              alt={game.name}
+              onError={() => setHeaderFailed(true)}
+            />
+          </div>
+        )}
 
         <div className={styles.modalBody}>
-          <h2 className={styles.modalTitle}>{game.name}</h2>
+          <h2 id="game-modal-title" className={styles.modalTitle}>
+            {game.name}
+          </h2>
 
           <div className={styles.statusSection}>
             <label className={styles.sectionLabel}>Game Status</label>
@@ -331,9 +342,9 @@ export const GameCardModal = ({ game, onClose }: Props) => {
               <div className={styles.steamRating}>
                 <span
                   className={styles.ratingValue}
-                  style={rating ? { color: getRatingColor(rating.score) } : undefined}
+                  style={displayRating ? { color: getRatingColor(displayRating.score) } : undefined}
                 >
-                  {rating ? `${rating.score}%` : '—'}
+                  {displayRating ? `${displayRating.score}%` : '—'}
                 </span>
                 <span className={styles.ratingLabel}>Steam</span>
               </div>
@@ -349,12 +360,15 @@ export const GameCardModal = ({ game, onClose }: Props) => {
               onChange={(e) => {
                 handleRatingChange(parseInt(e.target.value, 10));
               }}
-              className={styles.ratingSlider}
+              className={`${styles.ratingSlider} ${userRating === null ? styles.ratingSliderUnset : ''}`}
             />
             <div className={styles.ratingRange}>
               <span>0</span>
               <span>100</span>
             </div>
+            {userRating === null && (
+              <p className={styles.ratingHint}>Not rated yet. Drag the slider to rate.</p>
+            )}
           </div>
 
           <div className={styles.modalNotes}>
@@ -366,8 +380,12 @@ export const GameCardModal = ({ game, onClose }: Props) => {
               placeholder="Write your impressions, thoughts, or notes about this game..."
               rows={5}
             />
-            <button className={styles.btnPrimary} onClick={handleSaveNote} disabled={saving}>
-              {saving ? 'Saving...' : 'Save Note'}
+            <button
+              className={styles.btnPrimary}
+              onClick={handleSaveNote}
+              disabled={saving || note === savedNote}
+            >
+              {saving ? 'Saving...' : note === savedNote && savedNote ? 'Saved' : 'Save Note'}
             </button>
           </div>
 
