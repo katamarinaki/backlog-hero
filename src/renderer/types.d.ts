@@ -69,7 +69,7 @@ export interface FetchProgress {
   total: number;
 }
 
-export interface ElectronAPI {
+export interface DesktopAPI {
   onRatingsProgress: (callback: (progress: FetchProgress) => void) => () => void;
   onAchievementsProgress: (callback: (progress: FetchProgress) => void) => () => void;
   getSettings: () => Promise<Settings>;
@@ -106,7 +106,6 @@ export interface ElectronAPI {
   getIsPackaged: () => Promise<boolean>;
   getAppVersion: () => Promise<string>;
   installUpdate: () => Promise<boolean>;
-  onUpdaterLog: (callback: (msg: string) => void) => () => void;
   onUpdaterStatus: (
     callback: (status: {
       type: string;
@@ -119,6 +118,6 @@ export interface ElectronAPI {
 
 declare global {
   interface Window {
-    electronAPI: ElectronAPI;
+    desktopAPI: DesktopAPI;
   }
 }

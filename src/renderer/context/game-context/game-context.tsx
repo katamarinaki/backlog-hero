@@ -107,7 +107,7 @@ export const GameProvider = ({ children }: GameProviderProps) => {
 
     const loadData = async () => {
       try {
-        const settings = await window.electronAPI.getSettings();
+        const settings = await window.desktopAPI.getSettings();
         setHasSettings(!!settings.apiKey && !!settings.steamId);
 
         const [
@@ -120,14 +120,14 @@ export const GameProvider = ({ children }: GameProviderProps) => {
           cachedUserRatings,
           filterPrefs,
         ] = await Promise.all([
-          window.electronAPI.getGames(),
-          window.electronAPI.getRatings(),
-          window.electronAPI.getNotes(),
-          window.electronAPI.getStatuses(),
-          window.electronAPI.getAchievements(),
-          window.electronAPI.getSessions(),
-          window.electronAPI.getUserRatings(),
-          window.electronAPI.getFilterPreferences(),
+          window.desktopAPI.getGames(),
+          window.desktopAPI.getRatings(),
+          window.desktopAPI.getNotes(),
+          window.desktopAPI.getStatuses(),
+          window.desktopAPI.getAchievements(),
+          window.desktopAPI.getSessions(),
+          window.desktopAPI.getUserRatings(),
+          window.desktopAPI.getFilterPreferences(),
         ]);
 
         if (cachedGames && cachedGames.length > 0) {
@@ -170,9 +170,9 @@ export const GameProvider = ({ children }: GameProviderProps) => {
 
     const checkAndFetch = async () => {
       try {
-        const lastFetch = await window.electronAPI.getLastFetchTimestamp();
+        const lastFetch = await window.desktopAPI.getLastFetchTimestamp();
         if (isFetchStale(lastFetch)) {
-          const freshGames = await window.electronAPI.fetchGames();
+          const freshGames = await window.desktopAPI.fetchGames();
           setGames(freshGames);
         }
       } catch (err) {
@@ -186,14 +186,14 @@ export const GameProvider = ({ children }: GameProviderProps) => {
   const saveNote = useCallback(
     async (note: string) => {
       if (!selectedGame) return;
-      await window.electronAPI.saveNote(selectedGame.appid, note);
+      await window.desktopAPI.saveNote(selectedGame.appid, note);
       setNotes((prev) => ({ ...prev, [selectedGame.appid]: note }));
     },
     [selectedGame],
   );
 
   const saveStatus = useCallback(async (appid: number, status: GameStatus | null) => {
-    await window.electronAPI.saveStatus(appid, status);
+    await window.desktopAPI.saveStatus(appid, status);
     setStatuses((prev) => {
       const updated = { ...prev };
       if (status === null) {
@@ -206,17 +206,17 @@ export const GameProvider = ({ children }: GameProviderProps) => {
   }, []);
 
   const saveUserRating = useCallback(async (appid: number, rating: number) => {
-    await window.electronAPI.saveUserRating(appid, rating);
+    await window.desktopAPI.saveUserRating(appid, rating);
     setUserRatings((prev) => ({ ...prev, [appid]: rating }));
   }, []);
 
   const saveSession = useCallback(async (appid: number, sessionToSave: GameSession) => {
-    const updated = await window.electronAPI.saveSession(appid, sessionToSave);
+    const updated = await window.desktopAPI.saveSession(appid, sessionToSave);
     setSessions((prev) => ({ ...prev, [appid]: updated }));
   }, []);
 
   const deleteSession = useCallback(async (appid: number, id: string) => {
-    const updated = await window.electronAPI.deleteSession(appid, id);
+    const updated = await window.desktopAPI.deleteSession(appid, id);
     setSessions((prev) => {
       const next = { ...prev };
       if (updated.length > 0) {
@@ -233,7 +233,7 @@ export const GameProvider = ({ children }: GameProviderProps) => {
       const newSortAsc = sortBy === newSort ? !sortAsc : false;
       setSortBy(newSort);
       setSortAsc(newSortAsc);
-      window.electronAPI.saveFilterPreferences({
+      window.desktopAPI.saveFilterPreferences({
         statusFilter,
         sortBy: newSort,
         sortAsc: newSortAsc,
@@ -245,7 +245,7 @@ export const GameProvider = ({ children }: GameProviderProps) => {
   const handleStatusFilterChange = useCallback(
     (newFilter: StatusFilter) => {
       setStatusFilter(newFilter);
-      window.electronAPI.saveFilterPreferences({
+      window.desktopAPI.saveFilterPreferences({
         statusFilter: newFilter,
         sortBy,
         sortAsc,
@@ -257,7 +257,7 @@ export const GameProvider = ({ children }: GameProviderProps) => {
   const refreshLibrary = useCallback(async () => {
     setSyncLoading('library');
     try {
-      const fetchedGames = await window.electronAPI.fetchGames();
+      const fetchedGames = await window.desktopAPI.fetchGames();
       setGames(fetchedGames);
     } catch (err) {
       console.error('Failed to refresh library:', err);
@@ -272,7 +272,7 @@ export const GameProvider = ({ children }: GameProviderProps) => {
     setSyncLoading('ratings');
     try {
       const appids = games.map((g) => g.appid);
-      const fetchedRatings = await window.electronAPI.fetchRatings(appids);
+      const fetchedRatings = await window.desktopAPI.fetchRatings(appids);
       setRatings(fetchedRatings);
     } catch (err) {
       console.error('Failed to fetch ratings:', err);
@@ -287,7 +287,7 @@ export const GameProvider = ({ children }: GameProviderProps) => {
     setSyncLoading('achievements');
     try {
       const appids = games.map((g) => g.appid);
-      const fetchedAchievements = await window.electronAPI.fetchAchievements(appids);
+      const fetchedAchievements = await window.desktopAPI.fetchAchievements(appids);
       setAchievements(fetchedAchievements);
     } catch (err) {
       console.error('Failed to fetch achievements:', err);

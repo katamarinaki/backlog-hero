@@ -37,12 +37,12 @@ export const GameCardModal = ({ game, onClose }: Props) => {
     setUserRating(val);
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      window.electronAPI.saveUserRating(game.appid, val);
+      window.desktopAPI.saveUserRating(game.appid, val);
     }, 400);
   };
 
   useEffect(() => {
-    window.electronAPI.getUserRatings().then((ur) => {
+    window.desktopAPI.getUserRatings().then((ur) => {
       setUserRating(ur[game.appid] ?? null);
     });
   }, [game.appid]);
@@ -68,16 +68,16 @@ export const GameCardModal = ({ game, onClose }: Props) => {
     const load = async () => {
       try {
         if (!rating) {
-          const r = await window.electronAPI.fetchRating(appid);
+          const r = await window.desktopAPI.fetchRating(appid);
           if (!cancelled && r) setLazyRating(r);
         }
         if (!achievements) {
-          const a = await window.electronAPI.fetchAchievement(appid);
+          const a = await window.desktopAPI.fetchAchievement(appid);
           if (!cancelled && a) setLazyAchievements(a);
         }
-        const rt = await window.electronAPI.getRatingTimestamp(appid);
+        const rt = await window.desktopAPI.getRatingTimestamp(appid);
         if (!cancelled) setRatingTs(rt ?? (rating ? Date.now() : null));
-        const at = await window.electronAPI.getAchievementTimestamp(appid);
+        const at = await window.desktopAPI.getAchievementTimestamp(appid);
         if (!cancelled) setAchieveTs(at ?? (achievements ? Date.now() : null));
       } catch (err) {
         console.error('Failed to fetch game data:', err);

@@ -23,17 +23,17 @@ export const SettingsPage = () => {
 
   useEffect(() => {
     loadSettings();
-    window.electronAPI.getAppVersion().then(setAppVersion).catch(console.error);
-    const unsubscribe = window.electronAPI.onUpdaterStatus(setUpdateStatus);
+    window.desktopAPI.getAppVersion().then(setAppVersion).catch(console.error);
+    const unsubscribe = window.desktopAPI.onUpdaterStatus(setUpdateStatus);
     return unsubscribe;
   }, []);
 
   const loadSettings = async () => {
     try {
-      const settings = await window.electronAPI.getSettings();
+      const settings = await window.desktopAPI.getSettings();
       setApiKey(settings.apiKey || '');
       setSteamId(settings.steamId || '');
-      const beta = await window.electronAPI.getBetaUpdates();
+      const beta = await window.desktopAPI.getBetaUpdates();
       setBetaUpdates(beta);
     } catch (error) {
       console.error('Failed to load settings:', error);
@@ -76,7 +76,7 @@ export const SettingsPage = () => {
     setStatus(null);
 
     try {
-      await window.electronAPI.saveSettings({ apiKey, steamId });
+      await window.desktopAPI.saveSettings({ apiKey, steamId });
       setStatus({ type: 'success', message: 'Settings saved successfully!' });
     } catch {
       setStatus({ type: 'error', message: 'Failed to save settings' });
@@ -90,7 +90,7 @@ export const SettingsPage = () => {
     setStatus(null);
 
     try {
-      const exported = await window.electronAPI.exportData();
+      const exported = await window.desktopAPI.exportData();
       if (exported) {
         setStatus({ type: 'success', message: 'Data exported successfully.' });
       }
@@ -107,7 +107,7 @@ export const SettingsPage = () => {
     setStatus(null);
 
     try {
-      const imported = await window.electronAPI.importData();
+      const imported = await window.desktopAPI.importData();
       if (imported) {
         setStatus({
           type: 'success',
@@ -247,7 +247,12 @@ export const SettingsPage = () => {
               const value = e.target.checked;
               setBetaUpdates(value);
               setUpdateStatus(null);
-              await window.electronAPI.saveBetaUpdates(value);
+              try {
+                await window.desktopAPI.saveBetaUpdates(value);
+              } catch (error) {
+                setBetaUpdates(!value);
+                setUpdateStatus({ type: 'error', message: String(error) });
+              }
             }}
           />
           Use beta updates
@@ -255,6 +260,18 @@ export const SettingsPage = () => {
 
         {updateStatus && (
           <div className={styles.updateStatus}>
+            {updateStatus.type === 'disabled' && (
+              <span>
+                {updateStatus.message}{' '}
+                <a
+                  href="https://github.com/katamarinaki/backlog-hero/releases"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  View releases
+                </a>
+              </span>
+            )}
             {updateStatus.type === 'checking' && <span>Checking for updates…</span>}
             {updateStatus.type === 'available' && (
               <span>Update available: v{updateStatus.version} — downloading…</span>
@@ -273,7 +290,11 @@ export const SettingsPage = () => {
                 <span>Version {updateStatus.version} is ready to install.</span>
                 <button
                   className={styles.btnPrimary}
-                  onClick={() => window.electronAPI.installUpdate()}
+                  onClick={() => {
+                    void window.desktopAPI
+                      .installUpdate()
+                      .catch((error) => setUpdateStatus({ type: 'error', message: String(error) }));
+                  }}
                 >
                   Restart &amp; Install
                 </button>

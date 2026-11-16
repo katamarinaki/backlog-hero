@@ -1,88 +1,27 @@
-# CLAUDE.md
+# Backlog Hero
 
-Backlog Hero is an Electron desktop app for browsing your Steam library with notes, session logging, ratings, and game status tracking.
+Backlog Hero uses Tauri 2 with a React/TypeScript interface and a Rust desktop backend.
 
 ## Architecture
 
-```
-src/
-├── main/                  # Electron main process (Node.js, CommonJS)
-│   ├── main.ts            # Window creation, IPC handlers, electron-store, auto-updater
-│   ├── updater.ts         # Channel feed + macOS unsigned self-update (bypasses Squirrel.Mac)
-│   └── preload.ts         # contextBridge API exposed to renderer (electronAPI)
-├── renderer/              # React UI (Vite, ESM, TypeScript)
-│   ├── main.tsx           # Entry point — HashRouter + GameProvider
-│   ├── components/        # Reusable UI components (kebab-case directories)
-│   │   ├── header/        # Nav bar with Library/Log/Settings links
-│   │   ├── game-card-modal/ # Game detail modal (status pills, notes, achievements)
-│   │   └── log-modal/     # Session logging modal (length, rating, notes, status)
-│   ├── context/
-│   │   └── game-context/  # GameProvider — all game state, filters, sorting, API calls
-│   ├── pages/
-│   │   ├── home-page/     # Library grid with search/filter/sort; "+" log button per card
-│   │   ├── log-page/      # Recent activity (horizontal scroll) + session timeline
-│   │   └── settings-page/ # Steam API key config, refresh library, export/import
-│   ├── styles.global.css  # CSS variables and base styles
-│   └── types.d.ts         # Renderer-side type declarations + window.electronAPI
-└── shared/                # Shared between main and renderer (pure TypeScript)
-    ├── types.ts            # Shared type definitions (SteamGame, GameRating, etc.)
-    ├── gameUtils.ts        # Pure filter/sort/format utilities
-    ├── gameUtils.test.ts   # Unit tests for gameUtils
-    ├── logUtils.ts         # Session/cover helpers (getRecentActivity, computeSharedRating, …)
-    ├── logUtils.test.ts    # Unit tests for logUtils
-    ├── updaterUtils.ts     # Pure update feed + .app bundle path helpers
-    └── updaterUtils.test.ts # Unit tests for updaterUtils
-```
-
-## Key Patterns
-
-- **kebab-case** for all file and directory names (e.g. `game-card-modal/`, `home-page/`)
-- **CSS Modules** — each component/page has a co-located `.module.css`
-- **Path aliases** — `components/*`, `pages/*`, `context/*` map to `src/renderer/*`; `@shared/*` maps to `src/shared/*`
-- **GameContext** holds all game state; pages/components consume via `useGameContext()`
-- **electron-store** persists all data locally (games, ratings, notes, statuses, sessions, achievements, coverUrls, filter prefs)
-- **Status system** — `GameStatusType = 'backlog' | 'completed' | 'retired' | 'dropped'`; _In Progress_ is derived (has sessions + no explicit status). Migration runs on startup to strip legacy `in_progress` status and `isEndless` flag.
-- **Session logging** — `GameSession {id, appid, date, minutes, rating?, notes?}` persisted per-game; session rating is folded into the game's shared user rating via `computeSharedRating`
-- **IPC** is request/response via `ipcMain.handle` / `ipcRenderer.invoke` plus progress events for batch fetches
-- **electron-updater** checks GitHub Releases for updates every 4 hours in production builds. The app is unsigned, so macOS bypasses Squirrel.Mac: `src/main/updater.ts` sets `autoInstallOnAppQuit = false`, downloads the zip, and `installUpdate()` swaps the `.app` bundle via a detached helper and relaunches. Pure feed/path helpers live in `src/shared/updaterUtils.ts` (unit tested). A **Use beta updates** toggle switches between the stable GitHub feed and the rolling `beta` release tag built from `develop`.
-
-## Scripts
-
-| Command             | Purpose                                                 |
-| ------------------- | ------------------------------------------------------- |
-| `npm run dev`       | Start renderer (Vite) + main process concurrently       |
-| `npm run build`     | Compile main (tsc) + bundle renderer (Vite)             |
-| `npm run test`      | Run vitest test suite                                   |
-| `npm run lint`      | ESLint on all `.ts/.tsx` files                          |
-| `npm run format`    | Prettier on all files                                   |
-| `npm run typecheck` | TypeScript check for both renderer and main             |
-| `npm run dist`      | Build + package for current platform (electron-builder) |
-
-## Testing
-
-- **Vitest** with `environment: 'node'`
-- Tests live alongside source: `src/shared/gameUtils.test.ts`
-- Run: `npm test` (also runs in pre-commit hook via `lint-staged && npm test`)
-
-## CI/CD
-
-### PR checks (`.github/workflows/pr-checks.yml`)
-
-- Builds, runs tests, lints, and checks formatting on every PR
-
-### Release flow
-
-1. Bump `version` in `package.json` in a PR
-2. Merge to `main` → `tag-on-merge.yml` auto-creates `v{version}` tag
-3. Tag push triggers `release.yml` → builds macOS `.dmg`, Windows `.exe`, Linux `.AppImage`
-4. Draft release created on GitHub with all artifacts
-5. Publish the draft → `electron-updater` picks it up for users
+- `src/renderer/desktop-api.ts` implements the typed `window.desktopAPI` bridge using Tauri commands and events. It loads before React renders. Pages consume the bridge through GameContext or directly.
+- `src-tauri/src/main.rs` dispatches desktop operations and creates native backup dialogs.
+- `src-tauri/src/store.rs` owns JSON persistence, validation, atomic writes, and first-run Electron migration. Preserve compatibility with existing backups and leave legacy data untouched.
+- `src-tauri/src/steam.rs` owns Steam requests, timeouts, retry handling, ratings, achievements, and cover resolution. Never log URLs containing credentials.
+- `src-tauri/src/updater.rs` uses signed Tauri updates with stable/beta GitHub manifests. `TAURI_UPDATER_PUBLIC_KEY` is embedded at build time. Unconfigured builds offer manual downloads.
+- `src/renderer/` contains React pages, components, CSS Modules, and GameContext.
+- `src/shared/` contains pure TypeScript domain utilities and types.
 
 ## Conventions
 
-- TypeScript strict mode enabled
-- No unused locals/parameters enforced
-- ESLint import ordering: builtin → external → internal → parent → sibling → index
-- Pre-commit hook: `lint-staged` (eslint --fix on TS, prettier on JSON/MD/CSS) + `npm test`
-- All new logic in `src/shared/` should have unit tests
-- Shared types go in `src/shared/types.ts`; renderer-specific types in `src/renderer/types.d.ts`
+Use kebab-case for frontend files and directories, CSS Modules for component styles, and the existing path aliases (`components/*`, `pages/*`, `context/*`, `@shared/*`). TypeScript is strict. Use standard Rust module naming and rustfmt in the backend.
+
+Statuses are backlog, completed, retired, or dropped. In Progress is derived from sessions without an explicit status. Preserve the existing session-rating calculations in the frontend.
+
+Keep store locks out of asynchronous network operations. Merge fetched data into the current store to avoid losing concurrent changes. Persist before publishing successful mutation results. Validate imported data before replacing the store.
+
+## Validation
+
+Run `npm run typecheck`, `npm test`, `npm run lint`, `npm run format:check`, and `npm run build`. Backend changes also require `cargo fmt --manifest-path src-tauri/Cargo.toml --check`, `npm run test:rust`, and `cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings`. New shared logic needs unit tests. Add backend tests for data migration and persistence changes.
+
+`npm run dev` launches the desktop app; `npm run dist` builds installers under `src-tauri/target/release/bundle`. Read README.md for prerequisites, data paths, update signing, and release workflows.

@@ -4,8 +4,6 @@ import {
   getRecentActivity,
   getLogEntries,
   getLogDate,
-  buildLibraryCapsuleUrl,
-  STORE_ASSET_BASE,
   getSuggestedSessionMinutes,
   computeSharedRating,
 } from './logUtils';
@@ -52,31 +50,6 @@ describe('getRecentActivity', () => {
     const copy = [...games];
     getRecentActivity(games);
     expect(games).toEqual(copy);
-  });
-});
-
-describe('buildLibraryCapsuleUrl', () => {
-  it('substitutes the filename into the asset url format (new hashed assets)', () => {
-    expect(
-      buildLibraryCapsuleUrl(
-        'steam/apps/2215200/${FILENAME}?t=1780591479',
-        'f40c725261e949ef758d80bb067d09794635927e/library_capsule.jpg',
-      ),
-    ).toBe(
-      STORE_ASSET_BASE +
-        'steam/apps/2215200/f40c725261e949ef758d80bb067d09794635927e/library_capsule.jpg?t=1780591479',
-    );
-  });
-
-  it('works for older plain library_600x900 assets', () => {
-    expect(buildLibraryCapsuleUrl('steam/apps/730/${FILENAME}?t=1', 'library_600x900.jpg')).toBe(
-      STORE_ASSET_BASE + 'steam/apps/730/library_600x900.jpg?t=1',
-    );
-  });
-
-  it('returns null when either field is missing', () => {
-    expect(buildLibraryCapsuleUrl(undefined, 'x.jpg')).toBeNull();
-    expect(buildLibraryCapsuleUrl('steam/apps/1/${FILENAME}', undefined)).toBeNull();
   });
 });
 

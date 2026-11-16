@@ -78,7 +78,7 @@ export const LogPage = () => {
   useEffect(() => {
     if (recentActivity.length === 0) return;
     const appids = recentActivity.map((g) => g.appid);
-    window.electronAPI
+    window.desktopAPI
       .resolveCovers(appids)
       .then(setCoverUrls)
       .catch((err) => console.error('Failed to resolve covers:', err));

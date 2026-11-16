@@ -1,128 +1,66 @@
-name: Build and Draft Release
+name: Build Release
 
 on:
   release:
-    types:
-      - published
+    types: [published]
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version (e.g. 1.0.1)'
+        description: Version (e.g. 1.0.1)
         required: true
         type: string
 
 permissions:
   contents: write
 
+concurrency:
+  group: stable-release
+  cancel-in-progress: false
+
 jobs:
   build:
-    name: Build (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-      tag: ${{ steps.version.outputs.tag }}
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
         with:
-          node-version: 20
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
           cache: npm
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Set Release Version
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf
+      - run: npm ci
+      - name: Set version
         id: version
         shell: bash
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ inputs.version }}"
-            TAG="v${VERSION}"
-          else
-            # release: published — tag already exists
-            TAG="${{ github.ref_name }}"
-            VERSION="${TAG#v}"
-          fi
-          npm version "$VERSION" --no-git-tag-version
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Building release $TAG ($VERSION)"
-
-      - name: Build Distributables
-        run: npm run dist -- --publish=never
-
-      - name: Collect Artifacts
-        uses: actions/upload-artifact@v4
+          VERSION="${RELEASE_VERSION:-${RELEASE_TAG#v}}"
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Build and upload
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_UPDATER_PUBLIC_KEY: ${{ vars.TAURI_UPDATER_PUBLIC_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          name: release-${{ matrix.os }}
-          path: |
-            release/**/*.dmg
-            release/**/*.zip
-            release/**/*Setup*.exe
-            release/**/*.AppImage
-            release/**/*.blockmap
-            release/**/latest*.yml
-            release/**/app-update.yml
-
-  release:
-    name: Draft Release
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Create Tag (manual dispatch only)
-        if: github.event_name == 'workflow_dispatch'
-        shell: bash
-        run: |
-          TAG="${{ needs.build.outputs.tag }}"
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists, skipping."
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git tag -a "$TAG" -m "Release $TAG"
-            git push origin "$TAG"
-            echo "Created and pushed tag $TAG"
-          fi
-
-      - name: Download Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: release-artifacts
-          merge-multiple: true
-
-      - name: Upload Build Artifacts
-        uses: ncipollo/release-action@v1
-        with:
-          allowUpdates: true
-          replacesArtifacts: true
-          omitBodyDuringUpdate: true
-          omitNameDuringUpdate: true
-          tag: ${{ needs.build.outputs.tag }}
-          name: ${{ needs.build.outputs.tag }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-          body: |
-            Install
-            - Windows: download and run the `Backlog Hero Setup.exe` installer.
-            - macOS: download and open the `Backlog Hero.dmg` file.
-            - Linux: download the `Backlog Hero.AppImage`, make it executable (`chmod +x`), and run it.
-
-            Notes
-            - Auto-update files (`latest*.yml`, `app-update.yml`, `*.blockmap`) are for the app and can be ignored.
-          artifacts: |
-            release-artifacts/**/*.dmg
-            release-artifacts/**/*.zip
-            release-artifacts/**/*.AppImage
-            release-artifacts/**/*.blockmap
-            release-artifacts/**/latest*.yml
-            release-artifacts/**/app-update.yml
-            release-artifacts/**/*Setup*.exe
+          tagName: ${{ steps.version.outputs.tag }}
+          releaseName: ${{ steps.version.outputs.tag }}
+          releaseDraft: ${{ github.event_name == 'workflow_dispatch' }}
+          args: ${{ runner.os == 'Windows' && '--bundles nsis' || '' }} ${{ vars.TAURI_UPDATER_PUBLIC_KEY != '' && '--config src-tauri/tauri.updater.conf.json' || '' }}
+          includeUpdaterJson: ${{ vars.TAURI_UPDATER_PUBLIC_KEY != '' }}
