@@ -266,6 +266,7 @@ impl Store {
 
 fn legacy_paths(app: &AppHandle) -> Result<Vec<PathBuf>> {
     let base = app.path().config_dir().map_err(|e| e.to_string())?;
+    #[cfg_attr(not(target_os = "macos"), allow(unused_mut))]
     let mut bases = vec![base];
     #[cfg(target_os = "macos")]
     bases.push(
