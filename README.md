@@ -1,86 +1,67 @@
 # Backlog Hero
 
-Backlog Hero is an Electron desktop app for browsing your Steam library with notes, session logging, ratings, and game status tracking.
+A Tauri desktop app for browsing your Steam library, tracking game statuses, and keeping notes, ratings, and a gaming session log. The interface uses React and TypeScript; the desktop backend uses Rust.
 
-## Features
+## Development
 
-- Fetches your owned games from the Steam Web API
-- Caches library, ratings, achievements, notes, statuses, and sessions locally
-- **Library** — search, sort, and filter; game detail modal with playtime, achievements, store link, notes, and status
-- **Log** — recent activity (games played in the last 2 weeks) and a full session timeline
-  - Log a gaming session (length, date, personal rating 0–100, notes) from any game card
-  - Session rating averages into the game's shared rating
-  - Suggested session length auto-calculated from Steam's 2-week playtime minus already-logged time
-- **Status system** — Backlog · Completed · Retired (for endless games) · Dropped; _In Progress_ is derived automatically from logged sessions
-- Per-game notes and personal ratings
+Install Node.js 22+, npm, and the current stable Rust toolchain. Follow the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for your OS (Xcode Command Line Tools on macOS, C++ Build Tools and WebView2 on Windows, WebKitGTK and build dependencies on Linux).
 
-## Requirements
+```sh
+npm ci
+npm run dev
+```
 
-- Node.js and npm
-- Steam Web API key and SteamID64
+In Settings, enter your [Steam API key](https://steamcommunity.com/dev/apikey) and SteamID64. Your Steam profile's game details must be visible to the API.
 
-## Setup
+| Command                                                            | Purpose                                         |
+| ------------------------------------------------------------------ | ----------------------------------------------- |
+| `npm run dev`                                                      | Run the desktop app with Vite hot reload        |
+| `npm run dev:renderer`                                             | Run Vite alone (desktop commands require Tauri) |
+| `npm run build`                                                    | Typecheck and bundle the React interface        |
+| `npm run dist`                                                     | Build native installers for the current OS      |
+| `npm run dist:mac`                                                 | Build macOS app and DMG                         |
+| `npm run dist:win`                                                 | Build a Windows NSIS installer on Windows       |
+| `npm run typecheck`                                                | Check TypeScript                                |
+| `npm test`                                                         | Run frontend/domain tests                       |
+| `npm run test:rust`                                                | Run Rust persistence and migration tests        |
+| `npm run lint`                                                     | Check TypeScript style                          |
+| `npm run format:check`                                             | Check frontend/config/document formatting       |
+| `cargo fmt --manifest-path src-tauri/Cargo.toml --check`           | Check Rust formatting                           |
+| `cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings` | Check Rust lint                                 |
 
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-2. Start the app in development mode:
-   ```bash
-   npm run dev
-   ```
-3. Open Settings in the app and add:
-   - Steam API key: https://steamcommunity.com/dev/apikey
-   - SteamID64: https://steamid.io
+Native bundles are written to `src-tauri/target/release/bundle/`.
 
-## Scripts
+## Data and migration from Electron
 
-- `npm run dev`: Run the Vite renderer and Electron main process together
-- `npm run dev:renderer`: Start the renderer only (Vite)
-- `npm run dev:main`: Compile and run Electron main
-- `npm run build`: Build renderer and compile Electron main
-- `npm run start`: Build and run the packaged app
-- `npm run typecheck`: TypeScript checks for renderer and main
-- `npm run dist`: Build and package for the current platform
-- `npm run dist:win`: Build and package a Windows installer
-- `npm run dist:mac`: Build and package a macOS DMG
+The Rust backend stores JSON in Tauri's app config directory under `com.steamtracker.backloghero`. It preserves the previous JSON layout, including credentials, cached games and covers, notes, statuses, ratings, sessions, and preferences.
 
-## Development Notes
+On the first launch, if the new data file does not exist, the app first imports `config.json` from the previous Tauri directory, `com.steamtracker.app`, leaving the original untouched. An existing file in the new directory always takes precedence.
 
-- The Electron main process is in `src/main/main.ts`.
-- The React renderer is in `src/renderer`.
-- Local data is stored with `electron-store`.
+If neither Tauri directory has data, the app looks for Electron's `config.json` in the OS config directory under `backlog-hero`, `Backlog Hero`, `steam-tracker`, or `Steam Tracker`. On macOS it also checks `~/Library/Application Support`. It selects the candidate with the newest modification time and copies and migrates the data into the new directory, leaving the Electron file untouched. Subsequent launches use the Tauri file. Invalid source data produces a startup error instead of being overwritten.
 
-## Packaging
+Settings → Export Data / Import Data uses native file dialogs. Existing Electron JSON backups can be imported. Imports validate the data and run the legacy status migrations before replacing local data. Exports include your Steam credentials; keep backups private.
 
-- Windows: run `npm run dist:win` on Windows to produce an NSIS installer in `release/`.
-- macOS: run `npm run dist:mac` on macOS to produce a DMG in `release/`.
+## Updates and releases
 
-## Auto Updates
+The GitHub workflows build macOS, Windows, and Linux packages with Tauri. Pushes to `develop` update the rolling `beta` prerelease; publishing a stable release builds assets for its tag. A manual release workflow run creates a draft. The app checks for updates at launch and every four hours, downloads a verified update, and offers Restart & Install in Settings.
 
-- Auto updates are enabled in production builds via `electron-updater`.
-- Releases are expected to be published on GitHub for this repository.
-- When the app starts (and every 4 hours), it checks for updates, downloads them in the
-  background, and surfaces a **Restart & Install** button in **Settings → Updates**.
+Automatic updates require Tauri update signatures. Create a signing key pair with `npm run tauri signer generate -- -w <private-key-path>` and keep the private key outside the repository. Configure:
 
-### Channels
+- Repository variable `TAURI_UPDATER_PUBLIC_KEY`: contents of the generated public key file.
+- Repository secret `TAURI_SIGNING_PRIVATE_KEY`: contents of the private key file.
+- Repository secret `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`: key password, if one was set.
 
-- **Stable** (default): updates come from the latest published GitHub release.
-- **Beta**: enable **Use beta updates** in Settings to track the rolling `beta` release tag,
-  which is rebuilt on every push to `develop`. Beta versions are numbered as a prerelease of
-  the next stable (e.g. stable `1.0.10` → beta `1.0.11-beta.N`), so when the matching stable
-  ships you roll forward onto it automatically after switching back to the stable channel.
+The workflows then enable `src-tauri/tauri.updater.conf.json`, sign updater artifacts, and publish `latest.json`. They serialize platform builds so each platform can merge its entry into the same manifest. Both stable and beta builds must use the same signing key. These signatures are separate from Apple code signing/notarization and Windows Authenticode signing.
 
-### macOS (unsigned)
+Without a public key, packages build normally and Settings links to GitHub Releases for manual installation. Development builds do not check for updates.
 
-The app is **not signed with an Apple Developer certificate**. Squirrel.Mac refuses to install
-an unsigned/ad-hoc bundle (`code object is not signed at all`), so on macOS we bypass it: the
-update zip is downloaded by `electron-updater`, then a small detached helper waits for the app
-to quit, swaps the `.app` bundle in place, and relaunches it. Builds are ad-hoc signed in
-`scripts/after-pack.js` so they launch on Apple Silicon. Windows (NSIS) and Linux (AppImage)
-use the standard `electron-updater` install path.
+The first Tauri version must be installed manually over the Electron app: Electron's updater cannot consume Tauri packages or its update manifest. Existing local data is imported on launch as described above.
 
-## Releases
+## Source layout
 
-- On every push to `main`, GitHub Actions builds Windows and macOS installers and creates/updates a draft release.
-- The release tag and name are `v<package.json version>`. Bump the version before merging to `main`.
+- `src/renderer/`: React screens, styles, and the typed Tauri adapter (`desktop-api.ts`).
+- `src/shared/`: pure TypeScript models and UI/domain utilities.
+- `src-tauri/src/`: Rust command dispatch, Steam client, persistent store, and updater.
+- `src-tauri/capabilities/`: webview permissions and allowed external links.
+
+Steam requests run in Rust. The webview has no general HTTP or filesystem access; backups use native dialogs and external links use a scoped OS opener.

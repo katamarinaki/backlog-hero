@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { GameCardModal } from 'components/game-card-modal';
+import { GameThumb } from 'components/game-thumb';
 import { LogModal } from 'components/log-modal';
 import { useGameContext } from 'context/game-context';
 import type { StatusFilter, SteamGame } from 'types';
 
 import { formatPlaytime } from '../../../shared/gameUtils';
 
-import { getGameCover, getRatingColor } from './utils';
+import { getRatingColor } from './utils';
 import styles from './home-page.module.css';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -22,8 +23,10 @@ export const HomePage = () => {
   const {
     games,
     ratings,
+    userRatings,
     notes,
     statuses,
+    achievements,
     sessions,
     hasSettings,
     searchQuery,
@@ -36,8 +39,7 @@ export const HomePage = () => {
     selectedGame,
     setSelectedGame,
     filteredAndSortedGames,
-    error,
-    clearError,
+    statusCounts,
   } = useGameContext();
 
   const [logGame, setLogGame] = useState<SteamGame | null>(null);
@@ -81,14 +83,6 @@ export const HomePage = () => {
 
   return (
     <div className={styles.homePage}>
-      {error && (
-        <div className={styles.errorBanner}>
-          <span>{error}</span>
-          <button onClick={clearError} className={styles.errorDismiss} aria-label="Dismiss error">
-            ✕
-          </button>
-        </div>
-      )}
       <div className={styles.pageHeader}>
         <h1>Your Library</h1>
         <span className={styles.gameCount}>
@@ -111,13 +105,13 @@ export const HomePage = () => {
             onChange={(e) => handleStatusFilterChange(e.target.value as StatusFilter)}
             className={styles.filterSelect}
           >
-            <option value="all">All Games</option>
-            <option value="in_progress">In Progress</option>
-            <option value="backlog">Backlog</option>
-            <option value="completed">Completed</option>
-            <option value="retired">Retired</option>
-            <option value="dropped">Dropped</option>
-            <option value="untracked">Untracked</option>
+            <option value="all">All Games ({totalGamesCount})</option>
+            <option value="in_progress">In Progress ({statusCounts.in_progress})</option>
+            <option value="backlog">Backlog ({statusCounts.backlog})</option>
+            <option value="completed">Completed ({statusCounts.completed})</option>
+            <option value="retired">Retired ({statusCounts.retired})</option>
+            <option value="dropped">Dropped ({statusCounts.dropped})</option>
+            <option value="untracked">Untracked ({statusCounts.untracked})</option>
           </select>
         </div>
         <div className={styles.sortOptions}>
@@ -146,6 +140,12 @@ export const HomePage = () => {
           >
             Last Played {sortBy === 'last_played' && (sortAsc ? '↑' : '↓')}
           </button>
+          <button
+            className={`${styles.sortBtn} ${sortBy === 'status_date' ? styles.sortBtnActive : ''}`}
+            onClick={() => handleSortChange('status_date')}
+          >
+            Status Date {sortBy === 'status_date' && (sortAsc ? '↑' : '↓')}
+          </button>
         </div>
       </div>
 
@@ -164,49 +164,57 @@ export const HomePage = () => {
             const hasNote = !!notes[game.appid];
             const gameStatus = statuses[game.appid]?.status;
             const isInProgress = (sessions[game.appid]?.length ?? 0) > 0 && !gameStatus;
+            const userRating = userRatings[game.appid];
+            const gameAchievements = achievements[game.appid];
+            const hasAchievements = !!gameAchievements && gameAchievements.total > 0;
             return (
               <div
                 key={game.appid}
                 className={`${styles.gameCard} ${getStatusCardClass(gameStatus)}`}
+                role="button"
+                tabIndex={0}
                 onClick={() => setSelectedGame(game)}
+                onKeyDown={(e) => {
+                  if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return;
+                  e.preventDefault();
+                  setSelectedGame(game);
+                }}
               >
-                {gameStatus && (
-                  <div className={`${styles.statusBadge} ${getStatusBadgeClass(gameStatus)}`}>
-                    {STATUS_LABELS[gameStatus] ?? gameStatus}
-                  </div>
-                )}
-                {!gameStatus && isInProgress && (
-                  <div className={`${styles.statusBadge} ${styles.statusBadgeInProgress}`}>
-                    In Progress
-                  </div>
-                )}
-                <div className={styles.gameImage}>
-                  {game.img_icon_url ? (
-                    <img src={getGameCover(game.appid, game.img_icon_url)} alt={game.name} />
-                  ) : (
-                    <div className={styles.noImage}>No Image</div>
-                  )}
+                <div className={styles.gameSide}>
+                  <GameThumb appid={game.appid} iconHash={game.img_icon_url} />
+                  <button
+                    className={styles.addLogBtn}
+                    type="button"
+                    title="Log a session"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLogGame(game);
+                    }}
+                  >
+                    + Log
+                  </button>
                 </div>
-                <button
-                  className={styles.addLogBtn}
-                  type="button"
-                  title="Log a session"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setLogGame(game);
-                  }}
-                >
-                  +
-                </button>
                 <div className={styles.gameInfo}>
-                  <h3 className={styles.gameTitle}>
-                    {game.name}
-                    {hasNote && (
-                      <span className={styles.hasNote} title="Has notes">
-                        *
-                      </span>
+                  <div className={styles.gameTitleRow}>
+                    <h3 className={styles.gameTitle} title={game.name}>
+                      {game.name}
+                      {hasNote && (
+                        <span className={styles.hasNote} title="Has notes">
+                          *
+                        </span>
+                      )}
+                    </h3>
+                    {gameStatus && (
+                      <div className={`${styles.statusBadge} ${getStatusBadgeClass(gameStatus)}`}>
+                        {STATUS_LABELS[gameStatus] ?? gameStatus}
+                      </div>
                     )}
-                  </h3>
+                    {!gameStatus && isInProgress && (
+                      <div className={`${styles.statusBadge} ${styles.statusBadgeInProgress}`}>
+                        In Progress
+                      </div>
+                    )}
+                  </div>
                   <p className={styles.gamePlaytime}>
                     {formatPlaytime(game.playtime_forever)}
                     {game.playtime_2weeks && (
@@ -216,12 +224,22 @@ export const HomePage = () => {
                       </span>
                     )}
                   </p>
-                  {rating && (
+                  {rating && rating.total > 0 && (
                     <p
                       className={styles.gameRating}
                       style={{ color: getRatingColor(rating.score) }}
                     >
                       {rating.description} ({rating.score}% of {rating.total.toLocaleString()})
+                    </p>
+                  )}
+                  {(userRating != null || hasAchievements) && (
+                    <p className={styles.gameMeta}>
+                      {userRating != null && <span>You: {userRating}</span>}
+                      {hasAchievements && (
+                        <span>
+                          {gameAchievements.achieved} / {gameAchievements.total} achievements
+                        </span>
+                      )}
                     </p>
                   )}
                 </div>

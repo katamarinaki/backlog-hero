@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useGameContext } from 'context/game-context';
+import { useModalDialog } from 'components/use-modal-dialog';
 import type { GameSession, GameStatusType, SteamGame } from 'types';
 
 import { getSuggestedSessionMinutes, computeSharedRating } from '../../../shared/logUtils';
@@ -11,6 +12,9 @@ import styles from './log-modal.module.css';
 type Props = {
   game: SteamGame;
   onClose: () => void;
+  /** Opens the form editing this session instead of creating a new one. */
+  initialSessionId?: string;
+  onShowDetails?: () => void;
 };
 
 const STATUS_OPTIONS: GameStatusType[] = ['backlog', 'completed', 'retired', 'dropped'];
@@ -32,7 +36,7 @@ const formatSessionDate = (iso: string) => {
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
-export const LogModal = ({ game, onClose }: Props) => {
+export const LogModal = ({ game, onClose, initialSessionId, onShowDetails }: Props) => {
   const {
     sessions,
     saveSession,
@@ -52,16 +56,22 @@ export const LogModal = ({ game, onClose }: Props) => {
   const currentRating = userRatings[game.appid];
   const currentStatus = statuses[game.appid]?.status ?? null;
 
-  // Form state
-  const [date, setDate] = useState(todayISO());
-  const [hours, setHours] = useState(Math.floor(suggested / 60));
-  const [minutes, setMinutes] = useState(suggested % 60);
-  const [rating, setRating] = useState(currentRating ?? 50);
-  const [notes, setNotes] = useState('');
-  const [saving, setSaving] = useState(false);
-
   // Edit mode — when set, the form edits this session instead of creating a new one
-  const [editingSession, setEditingSession] = useState<GameSession | null>(null);
+  const [editingSession, setEditingSession] = useState<GameSession | null>(
+    () => gameSessions.find((s) => s.id === initialSessionId) ?? null,
+  );
+
+  // Form state
+  const initialMinutes = editingSession?.minutes ?? suggested;
+  const [date, setDate] = useState(editingSession?.date ?? todayISO());
+  const [hours, setHours] = useState(Math.floor(initialMinutes / 60));
+  const [minutes, setMinutes] = useState(initialMinutes % 60);
+  const [rating, setRating] = useState(editingSession?.rating ?? currentRating ?? 50);
+  const [notes, setNotes] = useState(editingSession?.notes ?? '');
+  const [saving, setSaving] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const confirmDeleteRef = useRef<HTMLButtonElement>(null);
+  const [headerFailed, setHeaderFailed] = useState(false);
 
   // Keep the length fields in sync with the suggestion (e.g. if sessions
   // finish loading after the modal mounts). Only updates when not editing.
@@ -72,13 +82,12 @@ export const LogModal = ({ game, onClose }: Props) => {
     }
   }, [suggested, editingSession]);
 
+  const modalRef = useModalDialog(onClose);
+
+  // Focus the armed button so that moving focus anywhere else disarms it.
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
-  }, [onClose]);
+    confirmDeleteRef.current?.focus();
+  }, [confirmDeleteId]);
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) onClose();
@@ -102,6 +111,7 @@ export const LogModal = ({ game, onClose }: Props) => {
     setMinutes(s.minutes % 60);
     setRating(s.rating ?? currentRating ?? 50);
     setNotes(s.notes ?? '');
+    modalRef.current?.scrollTo(0, 0);
   };
 
   const handleSave = async () => {
@@ -152,26 +162,43 @@ export const LogModal = ({ game, onClose }: Props) => {
 
   return (
     <div className={styles.backdrop} onClick={handleBackdropClick}>
-      <div className={styles.modal}>
+      <div
+        className={styles.modal}
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="log-modal-title"
+        tabIndex={-1}
+      >
         <button className={styles.close} onClick={onClose} aria-label="Close">
           ✕
         </button>
 
-        <div className={styles.headerImage}>
-          <img
-            src={getHeaderImageUrl(game.appid)}
-            alt={game.name}
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-            }}
-          />
-        </div>
+        {!headerFailed && (
+          <div className={styles.headerImage}>
+            <img
+              src={getHeaderImageUrl(game.appid)}
+              alt={game.name}
+              onError={() => setHeaderFailed(true)}
+            />
+          </div>
+        )}
 
         <div className={styles.body}>
-          <h2 className={styles.title}>{game.name}</h2>
+          <h2 id="log-modal-title" className={styles.title}>
+            {game.name}
+          </h2>
           <p className={styles.subtitle}>
             {formatPlaytime(game.playtime_forever)} total
             {game.playtime_2weeks ? ` · ${formatPlaytime(game.playtime_2weeks)} last 2 weeks` : ''}
+            {onShowDetails && (
+              <>
+                {' · '}
+                <button type="button" className={styles.detailsLink} onClick={onShowDetails}>
+                  Game details
+                </button>
+              </>
+            )}
           </p>
 
           {/* Form heading changes in edit mode */}
@@ -303,6 +330,7 @@ export const LogModal = ({ game, onClose }: Props) => {
             >
               {saving ? 'Saving…' : editingSession ? 'Update session' : 'Log session'}
             </button>
+            {totalMinutes <= 0 && <p className={styles.hint}>Enter a session length to log it.</p>}
           </div>
 
           {/* Existing sessions */}
@@ -326,22 +354,37 @@ export const LogModal = ({ game, onClose }: Props) => {
                       </div>
                       {s.notes && <p className={styles.sessionNotes}>{s.notes}</p>}
                       <div className={styles.sessionActions}>
-                        <button
-                          className={styles.sessionEdit}
-                          onClick={() => startEdit(s)}
-                          aria-label="Edit session"
-                          title="Edit session"
-                        >
-                          ✎
-                        </button>
-                        <button
-                          className={styles.sessionDelete}
-                          onClick={() => deleteSession(game.appid, s.id)}
-                          aria-label="Delete session"
-                          title="Delete session"
-                        >
-                          ✕
-                        </button>
+                        {confirmDeleteId === s.id ? (
+                          <button
+                            className={styles.sessionDeleteConfirm}
+                            ref={confirmDeleteRef}
+                            // WebKit blurs a button on mousedown, which would disarm before the click.
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => deleteSession(game.appid, s.id)}
+                            onBlur={() => setConfirmDeleteId(null)}
+                          >
+                            Delete?
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              className={styles.sessionEdit}
+                              onClick={() => startEdit(s)}
+                              aria-label="Edit session"
+                              title="Edit session"
+                            >
+                              ✎
+                            </button>
+                            <button
+                              className={styles.sessionDelete}
+                              onClick={() => setConfirmDeleteId(s.id)}
+                              aria-label="Delete session"
+                              title="Delete session"
+                            >
+                              ✕
+                            </button>
+                          </>
+                        )}
                       </div>
                     </li>
                   ))}

@@ -17,3 +17,6 @@ pnpm-debug.log*
 .DS_Store
 .idea/
 .vscode/
+
+src-tauri/target/
+src-tauri/gen/

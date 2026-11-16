@@ -4,3 +4,7 @@ release/
 out/
 coverage/
 package-lock.json
+
+src-tauri/target/
+src-tauri/gen/
+src-tauri/Cargo.lock

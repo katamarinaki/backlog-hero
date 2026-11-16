@@ -1,7 +1,9 @@
+import './desktop-api';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { HashRouter, Routes, Route } from 'react-router-dom';
 
+import { ErrorBanner } from 'components/error-banner';
 import { Header } from 'components/header';
 import { GameProvider } from 'context/game-context';
 import { HomePage } from 'pages/home-page';
@@ -18,6 +20,7 @@ createRoot(document.getElementById('root')!).render(
         <div className={styles.app}>
           <Header />
           <main className={styles.mainContent}>
+            <ErrorBanner />
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/log" element={<LogPage />} />

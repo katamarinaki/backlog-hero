@@ -2,126 +2,86 @@ name: Beta Build
 
 on:
   push:
-    branches:
-      - develop
+    branches: [develop]
 
 permissions:
   contents: write
 
-# Serialise runs so two pushes to develop never publish to the rolling `beta`
-# release at the same time (which would race on asset delete/upload).
 concurrency:
   group: beta-release
   cancel-in-progress: false
 
 jobs:
   build:
-    name: Build (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          fetch-tags: true
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf
+      - run: npm ci
+      - name: Set beta version
+        id: version
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          BASE_TAG=$(gh release list --limit 1 --exclude-drafts --exclude-pre-releases --json tagName -q '.[0].tagName')
+          BASE_VERSION="${BASE_TAG#v}"
+          if [ -z "$BASE_VERSION" ]; then BASE_VERSION=$(node -p "require('./package.json').version"); fi
+          NEXT_PATCH=$(node -e "const v=process.argv[1].split('.').map(Number); console.log([v[0],v[1],v[2]+1].join('.'))" "$BASE_VERSION")
+          BETA_VERSION="$NEXT_PATCH-beta.$BUILD_NUMBER"
+          npm version "$BETA_VERSION" --no-git-tag-version
+          echo "version=$BETA_VERSION" >> "$GITHUB_OUTPUT"
+      - name: Build and upload
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_UPDATER_PUBLIC_KEY: ${{ vars.TAURI_UPDATER_PUBLIC_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: beta
+          releaseName: Beta (develop)
+          releaseDraft: false
+          prerelease: true
+          releaseBody: Automated beta build from develop. Enable beta updates in Settings to receive signed updates.
+          args: ${{ runner.os == 'Windows' && '--bundles nsis' || '' }} ${{ vars.TAURI_UPDATER_PUBLIC_KEY != '' && '--config src-tauri/tauri.updater.conf.json' || '' }}
+          includeUpdaterJson: ${{ vars.TAURI_UPDATER_PUBLIC_KEY != '' }}
 
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Set Beta Version
+  cleanup:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove superseded beta installers
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          BETA_VERSION: ${{ needs.build.outputs.version }}
         shell: bash
         run: |
-          # Get the latest published (non-draft, non-prerelease) release tag
-          BASE_TAG=$(gh release list --limit 1 --exclude-drafts --exclude-pre-releases --json tagName -q '.[0].tagName' 2>/dev/null || echo "v0.0.0")
-          BASE_VERSION="${BASE_TAG#v}"
-          # Beta version must be higher than stable so it is an upgrade, not a downgrade
-          NEXT_PATCH=$(echo "$BASE_VERSION" | awk -F. '{print $1"."$2"."$3+1}')
-          BETA_VERSION="${NEXT_PATCH}-beta.${{ github.run_number }}"
-          npm version "$BETA_VERSION" --no-git-tag-version
-          echo "Building beta version $BETA_VERSION (next after stable $BASE_VERSION)"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build Distributables
-        run: npm run dist -- --publish=never
-
-      - name: Collect Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: beta-${{ matrix.os }}
-          path: |
-            release/**/*.dmg
-            release/**/*.zip
-            release/**/*Setup*.exe
-            release/**/*.AppImage
-            release/**/*.blockmap
-            release/**/latest*.yml
-            release/**/app-update.yml
-
-  release:
-    name: Update Beta Release
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Download Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: beta-artifacts
-          merge-multiple: true
-
-      # The `beta` release is a rolling prerelease. ncipollo's replacesArtifacts
-      # deletes each existing same-named asset individually before re-uploading,
-      # which intermittently 404s (asset-replace race) and then aborts *before*
-      # uploading the new latest*.yml / app-update.yml — leaving the auto-update
-      # feed broken. Wipe all existing assets up front (tolerating per-asset
-      # 404s) so the upload always starts from a clean slate.
-      - name: Clear old beta assets
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # This job has no checkout, so gh can't infer the repo from git —
-          # set it explicitly or `gh release view` fails and the clean is skipped.
-          GH_REPO: ${{ github.repository }}
-        run: |
-          if gh release view beta >/dev/null 2>&1; then
-            gh release view beta --json assets -q '.assets[].name' | while read -r asset; do
-              [ -z "$asset" ] && continue
-              echo "Deleting old beta asset: $asset"
-              gh release delete-asset beta "$asset" --yes || true
-            done
-          else
-            echo "No existing beta release — nothing to clean."
-          fi
-
-      - name: Update Beta Release
-        uses: ncipollo/release-action@v1
-        with:
-          allowUpdates: true
-          replacesArtifacts: true
-          draft: false
-          prerelease: true
-          generateReleaseNotes: true
-          tag: beta
-          name: Beta (develop)
-          token: ${{ secrets.GITHUB_TOKEN }}
-          body: |
-            Automated beta build from the `develop` branch.
-
-            To use: enable **Use beta updates** in the app settings.
-          artifacts: |
-            beta-artifacts/**/*.dmg
-            beta-artifacts/**/*.zip
-            beta-artifacts/**/*.AppImage
-            beta-artifacts/**/*.blockmap
-            beta-artifacts/**/latest*.yml
-            beta-artifacts/**/app-update.yml
-            beta-artifacts/**/*Setup*.exe
+          test -n "$BETA_VERSION"
+          gh release view beta --json assets -q '.assets[].name' > beta-assets.txt
+          while IFS= read -r asset; do
+            if [[ "$asset" =~ [0-9]+\.[0-9]+\.[0-9]+ ]] && [[ "$asset" != *"$BETA_VERSION"* ]]; then
+              gh release delete-asset beta "$asset" --yes
+            fi
+          done < beta-assets.txt

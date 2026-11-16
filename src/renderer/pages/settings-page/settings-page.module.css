@@ -70,6 +70,16 @@
   border-radius: 4px;
 }
 
+.syncProgress {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.settingsSection .statusMessage {
+  margin-top: 1rem;
+}
+
 .success {
   background-color: rgba(91, 163, 43, 0.2);
   border: 1px solid var(--success);
@@ -147,6 +157,10 @@
   flex-direction: column;
   gap: 0.5rem;
   color: var(--text-secondary);
+}
+
+.updateStatus a {
+  color: var(--accent);
 }
 
 .updateStatus .settingsActions {
